@@ -180,7 +180,7 @@ fun DashboardScreen(viewModel: StudyHubViewModel) {
                 )
             }
         } else {
-            items(sessions, key = { it.sessionId }) { session ->
+            items(sessions, key = { "session-${it.sessionId}" }) { session ->
                 val startsIn = TimeUtil.minutesUntilSession(session.dayOfWeek, session.startMinute)
                 val color = courseColor(session.colorIndex)
                 Card(
@@ -254,7 +254,7 @@ fun DashboardScreen(viewModel: StudyHubViewModel) {
                 )
             }
         } else {
-            items(upcoming, key = { it.id }) { item ->
+            items(upcoming, key = { "assignment-${it.id}" }) { item ->
                 val isOverdue = !item.isDone && item.dueAt < tick
                 val accent = when {
                     item.isDone -> SuccessGreen
@@ -313,7 +313,7 @@ fun DashboardScreen(viewModel: StudyHubViewModel) {
                 Spacer(Modifier.height(4.dp))
                 SectionHeader(title = "Exam schedule")
             }
-            items(exams.take(4), key = { it.id }) { exam ->
+            items(exams.take(4), key = { "exam-${it.id}" }) { exam ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()

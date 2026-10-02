@@ -19,14 +19,17 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -41,9 +44,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.saintchigos.studyhub.data.Course
 import com.saintchigos.studyhub.ui.StudyHubViewModel
 import com.saintchigos.studyhub.ui.components.CourseAvatar
+import com.saintchigos.studyhub.ui.components.DateTimeFields
 import com.saintchigos.studyhub.ui.components.EmptyState
 import com.saintchigos.studyhub.ui.components.SectionHeader
+import com.saintchigos.studyhub.ui.components.TimePickerField
 import com.saintchigos.studyhub.util.TimeUtil
+import java.time.Duration
+import java.time.LocalTime
 
 @Composable
 fun CoursesScreen(viewModel: StudyHubViewModel) {
@@ -252,22 +259,14 @@ private fun AddSessionDialog(
     onConfirm: (Int, Int, Int, String) -> Unit
 ) {
     var day by remember { mutableStateOf(1) }
-    var start by remember { mutableStateOf("08:00") }
-    var end by remember { mutableStateOf("10:00") }
+    var start by remember { mutableStateOf(LocalTime.of(8, 0)) }
+    var end by remember { mutableStateOf(LocalTime.of(10, 0)) }
     var room by remember { mutableStateOf("") }
     var dayOpen by remember { mutableStateOf(false) }
+    var use24h by remember { mutableStateOf(true) }
 
-    fun parseTime(t: String): Int? {
-        val parts = t.split(":")
-        if (parts.size != 2) return null
-        val h = parts[0].toIntOrNull() ?: return null
-        val m = parts[1].toIntOrNull() ?: return null
-        if (h !in 0..23 || m !in 0..59) return null
-        return h * 60 + m
-    }
-
-    val valid = parseTime(start) != null && parseTime(end) != null &&
-        (parseTime(start) ?: 0) < (parseTime(end) ?: 0)
+    val durationMinutes = Duration.between(start, end).toMinutes()
+    val valid = durationMinutes > 0
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -308,22 +307,39 @@ private fun AddSessionDialog(
                         }
                     }
                 }
-                Spacer(Modifier.height(10.dp))
-                OutlinedTextField(
-                    value = start,
-                    onValueChange = { start = it },
-                    label = { Text("Start (HH:mm)") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                Spacer(Modifier.height(14.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    TimePickerField(
+                        time = start,
+                        onTimeChange = { start = it },
+                        modifier = Modifier.weight(1f),
+                        label = "Starts",
+                        is24Hour = use24h
+                    )
+                    TimePickerField(
+                        time = end,
+                        onTimeChange = { end = it },
+                        modifier = Modifier.weight(1f),
+                        label = "Ends",
+                        is24Hour = use24h
+                    )
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = if (valid)
+                        "Length ${TimeUtil.formatClock(start.hour * 60 + start.minute)} to " +
+                            TimeUtil.formatClock(end.hour * 60 + end.minute)
+                    else "End time must be after the start time",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (valid) MaterialTheme.colorScheme.onSurfaceVariant
+                    else MaterialTheme.colorScheme.error
                 )
                 Spacer(Modifier.height(10.dp))
-                OutlinedTextField(
-                    value = end,
-                    onValueChange = { end = it },
-                    label = { Text("End (HH:mm)") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Switch(checked = use24h, onCheckedChange = { use24h = it })
+                    Spacer(Modifier.width(10.dp))
+                    Text("24-hour time", style = MaterialTheme.typography.bodyMedium)
+                }
                 Spacer(Modifier.height(10.dp))
                 OutlinedTextField(
                     value = room,
@@ -332,20 +348,19 @@ private fun AddSessionDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
-                if (!valid) {
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = "Enter times as HH:mm and make sure end is after start.",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
             }
         },
         confirmButton = {
             TextButton(
                 enabled = valid,
-                onClick = { onConfirm(day, parseTime(start)!!, parseTime(end)!!, room) }
+                onClick = {
+                    onConfirm(
+                        day,
+                        start.hour * 60 + start.minute,
+                        end.hour * 60 + end.minute,
+                        room
+                    )
+                }
             ) { Text("Add") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
@@ -359,11 +374,12 @@ private fun AddAssignmentDialog(
     onDismiss: () -> Unit,
     onConfirm: (String, Long, Int) -> Unit
 ) {
+    val today = remember { TimeUtil.now().toLocalDate() }
+    var dueDate by remember { mutableStateOf(today.plusDays(3)) }
+    var dueTime by remember { mutableStateOf(LocalTime.of(23, 59)) }
     var title by remember { mutableStateOf("") }
     var priority by remember { mutableStateOf(1) }
-    var daysOffset by remember { mutableStateOf(3) }
-    var hour by remember { mutableStateOf(23) }
-    var minute by remember { mutableStateOf(59) }
+    var use24h by remember { mutableStateOf(true) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -383,27 +399,33 @@ private fun AddAssignmentDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
-                Spacer(Modifier.height(12.dp))
-                Text("Due", style = MaterialTheme.typography.labelMedium)
+                Spacer(Modifier.height(14.dp))
+                DateTimeFields(
+                    date = dueDate,
+                    time = dueTime,
+                    onDateChange = { dueDate = it },
+                    onTimeChange = { dueTime = it },
+                    earliest = today,
+                    dateLabel = "Due date",
+                    is24Hour = use24h
+                )
+                Spacer(Modifier.height(14.dp))
+                Text("Priority", style = MaterialTheme.typography.labelMedium)
                 Spacer(Modifier.height(6.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    for (d in listOf(1, 3, 7, 14)) {
-                        androidx.compose.material3.FilterChip(
-                            selected = daysOffset == d,
-                            onClick = { daysOffset = d },
-                            label = { Text("${d}d") }
-                        )
-                    }
-                }
-                Spacer(Modifier.height(12.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     for (p in listOf(0 to "Low", 1 to "Normal", 2 to "High")) {
-                        androidx.compose.material3.FilterChip(
+                        FilterChip(
                             selected = priority == p.first,
                             onClick = { priority = p.first },
                             label = { Text(p.second) }
                         )
                     }
+                }
+                Spacer(Modifier.height(10.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Switch(checked = use24h, onCheckedChange = { use24h = it })
+                    Spacer(Modifier.width(10.dp))
+                    Text("24-hour time", style = MaterialTheme.typography.bodyMedium)
                 }
             }
         },
@@ -411,10 +433,7 @@ private fun AddAssignmentDialog(
             TextButton(
                 enabled = title.isNotBlank(),
                 onClick = {
-                    val due = TimeUtil.now()
-                        .toLocalDate()
-                        .plusDays(daysOffset.toLong())
-                        .atTime(hour, minute)
+                    val due = dueDate.atTime(dueTime)
                     onConfirm(title, TimeUtil.toEpochMillis(due), priority)
                 }
             ) { Text("Add") }
@@ -430,13 +449,14 @@ private fun AddExamDialog(
     onDismiss: () -> Unit,
     onConfirm: (String, Long, Int, String, String) -> Unit
 ) {
+    val today = remember { TimeUtil.now().toLocalDate() }
+    var examDate by remember { mutableStateOf(today.plusDays(14)) }
+    var examTime by remember { mutableStateOf(LocalTime.of(9, 0)) }
     var title by remember { mutableStateOf("") }
     var room by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
-    var daysOffset by remember { mutableStateOf(14) }
-    var hour by remember { mutableStateOf(9) }
-    var minute by remember { mutableStateOf(0) }
     var duration by remember { mutableStateOf("120") }
+    var use24h by remember { mutableStateOf(true) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -456,31 +476,17 @@ private fun AddExamDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
-                Spacer(Modifier.height(12.dp))
-                Text("Date", style = MaterialTheme.typography.labelMedium)
-                Spacer(Modifier.height(6.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    for (d in listOf(7, 14, 21, 30)) {
-                        androidx.compose.material3.FilterChip(
-                            selected = daysOffset == d,
-                            onClick = { daysOffset = d },
-                            label = { Text("${d}d") }
-                        )
-                    }
-                }
-                Spacer(Modifier.height(12.dp))
-                Text("Start time", style = MaterialTheme.typography.labelMedium)
-                Spacer(Modifier.height(6.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    for (h in listOf(8, 9, 10, 13, 14)) {
-                        androidx.compose.material3.FilterChip(
-                            selected = hour == h,
-                            onClick = { hour = h },
-                            label = { Text("${h}:00") }
-                        )
-                    }
-                }
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(14.dp))
+                DateTimeFields(
+                    date = examDate,
+                    time = examTime,
+                    onDateChange = { examDate = it },
+                    onTimeChange = { examTime = it },
+                    earliest = today,
+                    dateLabel = "Exam date",
+                    is24Hour = use24h
+                )
+                Spacer(Modifier.height(14.dp))
                 OutlinedTextField(
                     value = duration,
                     onValueChange = { duration = it.filter(Char::isDigit).take(3) },
@@ -488,6 +494,18 @@ private fun AddExamDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
+                Spacer(Modifier.height(10.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    androidx.compose.material3.Switch(
+                        checked = use24h,
+                        onCheckedChange = { use24h = it }
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        text = "24-hour time",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
                 Spacer(Modifier.height(10.dp))
                 OutlinedTextField(
                     value = room,
@@ -509,10 +527,7 @@ private fun AddExamDialog(
             TextButton(
                 enabled = title.isNotBlank(),
                 onClick = {
-                    val start = TimeUtil.now()
-                        .toLocalDate()
-                        .plusDays(daysOffset.toLong())
-                        .atTime(hour, minute)
+                    val start = examDate.atTime(examTime)
                     onConfirm(
                         title,
                         TimeUtil.toEpochMillis(start),
