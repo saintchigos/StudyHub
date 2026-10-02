@@ -30,9 +30,9 @@ New students do not type their timetable out by hand.
 The shipped catalogue contains **Computers and Statistics, Year 3, Semester A** with its
 five courses and thirteen class times.
 
-### Setup
+### Settings
 
-Reachable from the **Setup** button on the Courses tab.
+Reachable from the **Settings** tab in the bottom navigation.
 
 - See which programmes are applied, add another, or remove one.
 - **Semester ended** clears the class times and reminders for the applied plan so you stop
@@ -49,7 +49,7 @@ Reachable from the **Setup** button on the Courses tab.
 ### Reminders
 
 - 10 minutes before the **first class of the day**, and 5 minutes before every other class.
-  Both lead times are adjustable in Setup.
+  Both lead times are adjustable in Settings.
 - A high-importance heads-up notification with sound and vibration, plus an in-app banner.
 - Alarms are scheduled seven days ahead and re-armed whenever the timetable changes, on
   reboot, and after an app update.

@@ -31,12 +31,10 @@ private val THEME_OPTIONS = listOf(
     "dark" to "Dark"
 )
 
-/** General app preferences: look, reminder timing, alert style and support. */
+/** Appearance, reminder timing and alert style. */
 @Composable
 fun AppSettingsSection(
-    viewModel: StudyHubViewModel,
-    versionName: String,
-    onShowTerms: () -> Unit
+    viewModel: StudyHubViewModel
 ) {
     val firstLead by viewModel.firstClassLead.collectAsStateWithLifecycle()
     val laterLead by viewModel.otherClassLead.collectAsStateWithLifecycle()
@@ -124,15 +122,6 @@ fun AppSettingsSection(
                 }
             }
         }
-
-        Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            TextButton(onClick = onShowTerms) { Text("Terms and conditions") }
-            TextButton(onClick = onShowTerms) { Text("Privacy") }
-        }
-
-        Spacer(Modifier.height(4.dp))
-        AboutSection(versionName)
     }
 }
 

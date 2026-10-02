@@ -26,6 +26,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
+import com.saintchigos.studyhub.ui.components.ScreenHeader
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -71,14 +72,10 @@ fun DashboardScreen(viewModel: StudyHubViewModel) {
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Text(
-                text = "StudyHub",
-                style = MaterialTheme.typography.headlineMedium
-            )
-            Text(
-                text = TimeUtil.now().format(java.time.format.DateTimeFormatter.ofPattern("EEEE d MMMM yyyy")),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            ScreenHeader(
+                title = "StudyHub",
+                subtitle = TimeUtil.now()
+                    .format(java.time.format.DateTimeFormatter.ofPattern("EEEE d MMMM yyyy"))
             )
         }
 

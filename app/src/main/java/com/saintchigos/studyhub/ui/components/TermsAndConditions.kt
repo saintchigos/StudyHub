@@ -131,25 +131,3 @@ fun TermsAndConditionsDialog(
         }
     )
 }
-
-/** About section shown at the end of Setup. */
-@Composable
-fun AboutSection(versionName: String, modifier: Modifier = Modifier) {
-    Column(modifier = modifier.fillMaxWidth()) {
-        Text("StudyHub", style = MaterialTheme.typography.titleMedium)
-        Text(
-            text = "Version $versionName",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            text = "A student dashboard by Chigos Media.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(Modifier.height(6.dp))
-        SupportButton()
-        Spacer(Modifier.height(8.dp))
-        PoweredBy()
-    }
-}

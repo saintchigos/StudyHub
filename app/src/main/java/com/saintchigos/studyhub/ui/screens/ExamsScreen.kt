@@ -32,6 +32,7 @@ import com.saintchigos.studyhub.ui.StudyHubViewModel
 import com.saintchigos.studyhub.ui.components.CourseAvatar
 import com.saintchigos.studyhub.ui.components.CourseTag
 import com.saintchigos.studyhub.ui.components.EmptyState
+import com.saintchigos.studyhub.ui.components.ScreenHeader
 import com.saintchigos.studyhub.ui.components.SectionHeader
 import com.saintchigos.studyhub.ui.components.courseColor
 import com.saintchigos.studyhub.util.TimeUtil
@@ -41,15 +42,11 @@ fun ExamsScreen(viewModel: StudyHubViewModel) {
     val exams by viewModel.exams.collectAsStateWithLifecycle()
 
     Column(modifier = Modifier.fillMaxSize()) {
-        Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp)) {
-            Text("Exams", style = MaterialTheme.typography.headlineMedium)
-            Text(
-                text = if (exams.isEmpty()) "Nothing scheduled"
-                else "${exams.size} upcoming assessment${if (exams.size == 1) "" else "s"}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+        ScreenHeader(
+            title = "Exams",
+            subtitle = if (exams.isEmpty()) "Nothing scheduled"
+            else "${exams.size} upcoming assessment${if (exams.size == 1) "" else "s"}"
+        )
 
         if (exams.isEmpty()) {
             EmptyState(

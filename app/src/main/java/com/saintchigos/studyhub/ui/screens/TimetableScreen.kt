@@ -38,6 +38,7 @@ import com.saintchigos.studyhub.ui.StudyHubViewModel
 import com.saintchigos.studyhub.ui.components.CourseAvatar
 import com.saintchigos.studyhub.ui.components.EmptyState
 import com.saintchigos.studyhub.ui.components.SectionHeader
+import com.saintchigos.studyhub.ui.components.ScreenHeader
 import com.saintchigos.studyhub.ui.components.SessionDialog
 import com.saintchigos.studyhub.util.TimeUtil
 
@@ -53,14 +54,7 @@ fun TimetableScreen(viewModel: StudyHubViewModel) {
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp)) {
-                Text("Timetable", style = MaterialTheme.typography.headlineMedium)
-                Text(
-                    text = "Tap a class to edit it",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            ScreenHeader(title = "Timetable", subtitle = "Tap a class to edit it")
 
             Row(
                 modifier = Modifier

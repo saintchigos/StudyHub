@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.TaskAlt
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -53,7 +54,7 @@ import com.saintchigos.studyhub.ui.screens.CoursesScreen
 import com.saintchigos.studyhub.ui.screens.DashboardScreen
 import com.saintchigos.studyhub.ui.screens.ExamsScreen
 import com.saintchigos.studyhub.ui.screens.OnboardingScreen
-import com.saintchigos.studyhub.ui.screens.SetupScreen
+import com.saintchigos.studyhub.ui.screens.SettingsScreen
 import com.saintchigos.studyhub.ui.screens.TimetableScreen
 import com.saintchigos.studyhub.ui.theme.StudyHubTheme
 import com.saintchigos.studyhub.util.TimeUtil
@@ -92,7 +93,8 @@ private enum class Destination(val route: String, val label: String, val icon: I
     Timetable("timetable", "Timetable", Icons.Filled.CalendarMonth),
     Assignments("assignments", "Tasks", Icons.Filled.TaskAlt),
     Exams("exams", "Exams", Icons.Filled.Event),
-    Courses("courses", "Courses", Icons.Filled.School)
+    Courses("courses", "Courses", Icons.Filled.School),
+    Settings("settings", "Settings", Icons.Filled.Settings)
 }
 
 @Composable
@@ -129,7 +131,6 @@ private fun AppRoot(viewModel: StudyHubViewModel) {
 
     var alert by remember { mutableStateOf<com.saintchigos.studyhub.reminder.ClassReminder?>(null) }
     val dismissed = remember { mutableStateOf(setOf<String>()) }
-    var showSetup by remember { mutableStateOf(false) }
 
     // Poll for a class that is about to start so the banner fires even in-app.
     LaunchedEffect(Unit) {
@@ -142,15 +143,6 @@ private fun AppRoot(viewModel: StudyHubViewModel) {
         }
     }
 
-    if (showSetup) {
-        Surface(color = MaterialTheme.colorScheme.surface) {
-            SetupScreen(
-                viewModel = viewModel,
-                onClose = { showSetup = false }
-            )
-        }
-        return
-    }
 
     Scaffold(
         bottomBar = {
@@ -196,7 +188,8 @@ private fun AppRoot(viewModel: StudyHubViewModel) {
                 composable(Destination.Timetable.route) { TimetableScreen(viewModel) }
                 composable(Destination.Assignments.route) { AssignmentsScreen(viewModel) }
                 composable(Destination.Exams.route) { ExamsScreen(viewModel) }
-                composable(Destination.Courses.route) { CoursesScreen(viewModel, onOpenSetup = { showSetup = true }) }
+                composable(Destination.Courses.route) { CoursesScreen(viewModel) }
+composable(Destination.Settings.route) { SettingsScreen(viewModel) }
             }
         }
     }

@@ -36,6 +36,7 @@ import com.saintchigos.studyhub.ui.StudyHubViewModel
 import com.saintchigos.studyhub.ui.components.CourseTag
 import com.saintchigos.studyhub.ui.components.EmptyState
 import com.saintchigos.studyhub.ui.components.SectionHeader
+import com.saintchigos.studyhub.ui.components.ScreenHeader
 import com.saintchigos.studyhub.ui.theme.SuccessGreen
 import com.saintchigos.studyhub.ui.theme.WarningAmber
 import com.saintchigos.studyhub.util.TimeUtil
@@ -59,14 +60,10 @@ fun AssignmentsScreen(viewModel: StudyHubViewModel) {
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp)) {
-            Text("Assignments", style = MaterialTheme.typography.headlineMedium)
-            Text(
-                text = "${assignments.count { !it.isDone }} open of ${assignments.size}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+        ScreenHeader(
+            title = "Assignments",
+            subtitle = "${assignments.count { !it.isDone }} open of ${assignments.size}"
+        )
 
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),

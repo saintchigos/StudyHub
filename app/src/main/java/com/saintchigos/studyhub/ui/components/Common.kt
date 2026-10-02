@@ -172,3 +172,61 @@ fun VerticalDivider(height: androidx.compose.ui.unit.Dp = 28.dp, modifier: Modif
             .background(MaterialTheme.colorScheme.outlineVariant)
     )
 }
+
+/**
+ * Consistent title block for every screen, so headings line up and share the same
+ * weight and spacing across tabs.
+ */
+@Composable
+fun ScreenHeader(
+    title: String,
+    subtitle: String? = null,
+    modifier: Modifier = Modifier,
+    trailing: (@Composable () -> Unit)? = null
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold
+            )
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        if (trailing != null) trailing()
+    }
+}
+
+/** Titled group of related settings, used to give long screens some structure. */
+@Composable
+fun SettingsGroup(
+    title: String,
+    modifier: Modifier = Modifier,
+    description: String? = null,
+    content: @Composable () -> Unit
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        SectionHeader(title = title, modifier = Modifier.padding(horizontal = 4.dp))
+        if (description != null) {
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+            )
+        }
+        Spacer(Modifier.height(6.dp))
+        content()
+    }
+}

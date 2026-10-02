@@ -4,14 +4,15 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
+import com.saintchigos.studyhub.ui.components.ScreenHeader
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -24,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.saintchigos.studyhub.data.PlanWithProgramme
@@ -41,18 +43,16 @@ import com.saintchigos.studyhub.ui.components.TermsAndConditionsDialog
 import com.saintchigos.studyhub.ui.components.planLabel
 
 /**
- * Programme settings. This is where a student switches major, adds a programme that
- * is not in the catalogue, or removes a plan they no longer want. Nothing here
- * deletes their assignments or exams.
+ * Settings. Everything the student can configure lives here: programme and semester,
+ * reminder permissions and timing, appearance, terms and conditions, support and
+ * their data. Nothing here deletes anything without an explicit confirmation.
  */
 @Composable
-fun SetupScreen(
-    viewModel: StudyHubViewModel,
-    onClose: (() -> Unit)? = null
-) {
+fun SettingsScreen(viewModel: StudyHubViewModel) {
     val plans by viewModel.plans.collectAsStateWithLifecycle()
     val stats by viewModel.planStats.collectAsStateWithLifecycle()
     val courses by viewModel.courses.collectAsStateWithLifecycle()
+    val termsAccepted by viewModel.termsAccepted.collectAsStateWithLifecycle()
 
     var addingMajor by remember { mutableStateOf(false) }
     var addingCourseFor by remember { mutableStateOf<PlanWithProgramme?>(null) }
@@ -68,6 +68,9 @@ fun SetupScreen(
         }.getOrNull() ?: "1.0"
     }
 
+    val applied = plans.filter { it.applied }
+    val custom = plans.filter { it.isCustom }
+
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -75,40 +78,47 @@ fun SetupScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
+                ScreenHeader(
+                    title = "Settings",
+                    subtitle = "Programme, reminders, appearance and your data"
+                )
+            }
+
+            // ---- programme -------------------------------------------------
+            item { SectionHeader("My programme") }
+            item {
+                if (applied.isEmpty()) {
+                    Text(
+                        text = "No programme applied yet. Choose one below and your courses " +
+                            "and timetable are filled in for you.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            items(applied, key = { "applied-${it.planId}" }) { plan ->
+                ProgrammePlanCard(
+                    plan = plan,
+                    stats = stats[plan.planId] ?: (0 to 0),
+                    onApply = { viewModel.applyPlan(plan.planId) },
+                    onRemove = { viewModel.removePlan(plan.planId) }
+                )
+            }
+
+            item {
                 Column {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Setup",
-                            style = MaterialTheme.typography.headlineMedium,
-                            modifier = Modifier.weight(1f)
-                        )
-                        if (onClose != null) {
-                            TextButton(onClick = onClose) { Text("Done") }
-                        }
-                    }
+                    SectionHeader("Switch or add a programme")
                     Text(
-                        text = "Your programme and timetable",
+                        text = "Switching never deletes your work. Adding a programme only " +
+                            "fills in what is missing, and you can remove it again at any time.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    Spacer(Modifier.height(4.dp))
+                    TextButton(onClick = { addingMajor = true }) { Text("Add my programme") }
                 }
             }
-
-            item {
-                SectionHeader("Applied programmes")
-                if (plans.none { it.applied }) {
-                    Text(
-                        text = "No programme applied yet. Pick one below to fill in your timetable.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            items(plans.filter { it.applied }, key = { it.planId }) { plan ->
+            items(plans.filter { !it.applied }, key = { "pick-${it.planId}" }) { plan ->
                 ProgrammePlanCard(
                     plan = plan,
                     stats = stats[plan.planId] ?: (0 to 0),
@@ -116,36 +126,10 @@ fun SetupScreen(
                     onRemove = { viewModel.removePlan(plan.planId) }
                 )
             }
-
-            item {
-                SectionHeader("Add another programme")
-                Text(
-                    text = "Switching never deletes your work. Adding a plan only fills in what is missing, and you can remove it again at any time.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.height(6.dp))
-                TextButton(onClick = { addingMajor = true }) { Text("Add my programme") }
-            }
-
-            items(plans, key = { "pick-${it.planId}" }) { plan ->
-                ProgrammePlanCard(
-                    plan = plan,
-                    stats = stats[plan.planId] ?: (0 to 0),
-                    onApply = { viewModel.applyPlan(plan.planId) },
-                    onRemove = { viewModel.removePlan(plan.planId) }
-                )
-            }
-
-            val custom = plans.filter { it.isCustom }
             if (custom.isNotEmpty()) {
-                item { SectionHeader("Courses in your programmes") }
                 items(custom, key = { "edit-${it.planId}" }) { plan ->
                     Column {
-                        Text(
-                            text = planLabel(plan),
-                            style = MaterialTheme.typography.titleSmall
-                        )
+                        Text(planLabel(plan), style = MaterialTheme.typography.titleSmall)
                         TextButton(onClick = { addingCourseFor = plan }) {
                             Text("Add a course to this programme")
                         }
@@ -154,93 +138,131 @@ fun SetupScreen(
             }
 
             item {
-                SectionHeader("Class reminders")
-                NotificationSettings(modifier = Modifier.padding(top = 4.dp))
+                Column(modifier = Modifier.padding(top = 4.dp)) {
+                    SectionHeader("Start-up page")
+                    Text(
+                        text = "Go back to the first-run programme picker. Your courses, " +
+                            "timetable, assignments and exams stay as they are.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    TextButton(onClick = { viewModel.restartSetup() }) {
+                        Text("Return to start-up page")
+                    }
+                }
             }
 
+            // ---- semester --------------------------------------------------
+            item { SectionHeader("Semester") }
             item {
-                Column(modifier = Modifier.padding(top = 8.dp)) {
-                    SectionHeader("Semester ended?")
+                Column {
                     Text(
-                        text = "Ending the semester clears the class times and reminders for the applied plan so you stop getting alerts for old classes. Your courses, assignments and exams stay safe, and you can load your next semester's timetable straight away.",
+                        text = "When your semester ends, clear the old class times and " +
+                            "reminders so you stop being warned about classes you no longer " +
+                            "attend. Your courses, assignments and exams are kept.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(Modifier.height(4.dp))
-                    val applied = plans.filter { it.applied }
                     if (applied.isEmpty()) {
                         Text(
-                            text = "No plan is applied, so there is nothing to end yet.",
+                            text = "No programme is applied, so there is nothing to end yet.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     } else {
                         applied.forEach { plan ->
                             TextButton(onClick = { endingSemesterFor = plan }) {
-                                Text("End ${plan.programmeName} Semester ${plan.semester}")
+                                Text("End ${planLabel(plan)}")
                             }
                         }
                     }
                 }
             }
 
+            // ---- reminders and appearance -----------------------------------
             item {
-                Column(modifier = Modifier.padding(top = 8.dp)) {
-                    SectionHeader("App settings")
-                    AppSettingsSection(
-                        viewModel = viewModel,
-                        versionName = versionName,
-                        onShowTerms = { showTerms = true }
-                    )
+                Column {
+                    SectionHeader("Reminders")
+                    NotificationSettings()
+                }
+            }
+            item {
+                Column {
+                    SectionHeader("Appearance and alert style")
+                    AppSettingsSection(viewModel = viewModel)
                 }
             }
 
+            // ---- terms and conditions ---------------------------------------
             item {
-                Column(modifier = Modifier.padding(top = 8.dp)) {
-                    SectionHeader("How it works")
-                    HowItWorks()
-                }
-            }
-
-            item {
-                Column(modifier = Modifier.padding(top = 8.dp)) {
-                    SectionHeader("Support")
-                    SupportButton()
-                }
-            }
-
-            item {
-                Column(modifier = Modifier.padding(top = 8.dp)) {
-                    SectionHeader("Danger zone")
+                Column {
+                    SectionHeader("Terms and conditions")
                     Text(
-                        text = "Remove every course, class, assignment and exam from this device. Your programme catalogue is kept so you can set up again straight away.",
+                        text = "StudyHub stores everything on your device only. There is no " +
+                            "account server and nothing is uploaded.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    TextButton(onClick = { confirmDeleteAll = true }) {
-                        Text("Delete all my data")
-                    }
-                }
-            }
-
-            item {
-                Column(modifier = Modifier.padding(top = 8.dp)) {
-                    SectionHeader("Start-up page")
-                    Text(
-                        text = "Go back to the first-run programme picker. Your courses, timetable, assignments and exams stay as they are.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Spacer(Modifier.height(6.dp))
+                    TermsSummary()
                     Spacer(Modifier.height(4.dp))
-                    TextButton(onClick = { viewModel.restartSetup() }) {
-                        Text("Return to start-up page")
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        TextButton(onClick = { showTerms = true }) {
+                            Text("Read full terms and conditions")
+                        }
+                        TextButton(onClick = { showTerms = true }) { Text("Privacy") }
                     }
                     Text(
-                        text = "${courses.size} courses in your timetable",
+                        text = if (termsAccepted) "You accepted the terms on this device."
+                        else "You have not accepted the terms yet.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                }
+            }
+
+            // ---- support and about ------------------------------------------
+            item {
+                Column {
+                    SectionHeader("Help and support")
+                    HowItWorks()
+                    Spacer(Modifier.height(8.dp))
+                    SupportButton()
+                }
+            }
+            item {
+                Column {
+                    SectionHeader("About")
+                    Text("StudyHub", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        text = "Version $versionName",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "A student dashboard by Chigos Media.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     PoweredBy()
+                }
+            }
+
+            item {
+                Column {
+                    SectionHeader("Your data")
+                    Text(
+                        text = "${courses.size} courses and ${courses.sumOf { it.credits }} " +
+                            "credits in your timetable. You can remove any course, class, " +
+                            "assignment or exam yourself at any time.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    TextButton(onClick = { confirmDeleteAll = true }) {
+                        Text("Delete all my data")
+                    }
                 }
             }
         }
@@ -276,8 +298,7 @@ fun SetupScreen(
                 text = {
                     Text(
                         "This clears the class times and reminders for " +
-                            "${ending.programmeName} Year ${ending.year} Semester ${ending.semester}. " +
-                            "Your courses, assignments and exams are kept."
+                            planLabel(ending) + ". Your courses, assignments and exams are kept."
                     )
                 },
                 confirmButton = {
@@ -318,6 +339,36 @@ fun SetupScreen(
                 dismissButton = {
                     TextButton(onClick = { confirmDeleteAll = false }) { Text("Cancel") }
                 }
+            )
+        }
+    }
+}
+
+/** Plain-language version of the terms, shown without needing to open the dialog. */
+@Composable
+private fun TermsSummary() {
+    val points = listOf(
+        "Your timetable, courses, assignments and exams belong to you.",
+        "Everything stays on this device. Nothing is uploaded.",
+        "Reminders need notification and alarm permission to arrive on time.",
+        "Timetable templates are a starting point. Confirm your real schedule " +
+            "with your department.",
+        "The app is provided as is, without warranty."
+    )
+    points.forEach { point ->
+        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+            Text(
+                text = "•",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(Modifier.height(0.dp))
+            Text(
+                text = point,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 6.dp)
             )
         }
     }

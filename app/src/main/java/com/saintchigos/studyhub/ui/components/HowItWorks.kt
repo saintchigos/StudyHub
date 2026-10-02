@@ -45,7 +45,7 @@ private val STEPS = listOf(
     ),
     Step(
         "5. Semesters and support",
-        "When your semester ends, tell us in Setup and load your next one. Need help? " +
+        "When your semester ends, tell us in Settings and load your next one. Need help? " +
             "Message Chigos Media on WhatsApp any time."
     )
 )

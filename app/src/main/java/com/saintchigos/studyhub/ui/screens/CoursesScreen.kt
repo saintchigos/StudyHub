@@ -1,4 +1,4 @@
-﻿package com.saintchigos.studyhub.ui.screens
+package com.saintchigos.studyhub.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -42,16 +42,14 @@ import com.saintchigos.studyhub.ui.StudyHubViewModel
 import com.saintchigos.studyhub.ui.components.CourseAvatar
 import com.saintchigos.studyhub.ui.components.DateTimeFields
 import com.saintchigos.studyhub.ui.components.EmptyState
+import com.saintchigos.studyhub.ui.components.ScreenHeader
 import com.saintchigos.studyhub.ui.components.SectionHeader
 import com.saintchigos.studyhub.ui.components.SessionDialog
 import com.saintchigos.studyhub.util.TimeUtil
 import java.time.LocalTime
 
 @Composable
-fun CoursesScreen(
-    viewModel: StudyHubViewModel,
-    onOpenSetup: (() -> Unit)? = null
-) {
+fun CoursesScreen(viewModel: StudyHubViewModel) {
     val courses by viewModel.courses.collectAsStateWithLifecycle()
     var showCourseDialog by remember { mutableStateOf(false) }
     var sessionCourseId by remember { mutableStateOf<Long?>(null) }
@@ -59,35 +57,22 @@ fun CoursesScreen(
     var assignmentCourseId by remember { mutableStateOf<Long?>(null) }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 16.dp, end = 16.dp, top = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column {
-                Text("Courses", style = MaterialTheme.typography.headlineMedium)
-                Text(
-                    text = "${courses.size} registered",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+        ScreenHeader(
+            title = "Courses",
+            subtitle = "${courses.size} registered",
+            trailing = {
+                Button(onClick = { showCourseDialog = true }) {
+                    Icon(Icons.Filled.Add, contentDescription = null)
+                    Spacer(Modifier.width(6.dp))
+                    Text("Add")
+                }
             }
-            if (onOpenSetup != null) {
-                TextButton(onClick = onOpenSetup) { Text("Setup") }
-            }
-            Button(onClick = { showCourseDialog = true }) {
-                Icon(Icons.Filled.Add, contentDescription = null)
-                Spacer(Modifier.width(6.dp))
-                Text("Add")
-            }
-        }
+        )
 
         if (courses.isEmpty()) {
             EmptyState(
                 title = "No courses yet",
-                subtitle = "Pick your programme in Setup to fill these in automatically, or add a course by hand.",
+                subtitle = "Pick your programme in Settings to fill these in automatically, or add a course by hand.",
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
         } else {
