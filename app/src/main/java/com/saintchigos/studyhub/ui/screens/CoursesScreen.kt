@@ -1,4 +1,4 @@
-package com.saintchigos.studyhub.ui.screens
+﻿package com.saintchigos.studyhub.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -19,10 +19,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -47,13 +43,15 @@ import com.saintchigos.studyhub.ui.components.CourseAvatar
 import com.saintchigos.studyhub.ui.components.DateTimeFields
 import com.saintchigos.studyhub.ui.components.EmptyState
 import com.saintchigos.studyhub.ui.components.SectionHeader
-import com.saintchigos.studyhub.ui.components.TimePickerField
+import com.saintchigos.studyhub.ui.components.SessionDialog
 import com.saintchigos.studyhub.util.TimeUtil
-import java.time.Duration
 import java.time.LocalTime
 
 @Composable
-fun CoursesScreen(viewModel: StudyHubViewModel) {
+fun CoursesScreen(
+    viewModel: StudyHubViewModel,
+    onOpenSetup: (() -> Unit)? = null
+) {
     val courses by viewModel.courses.collectAsStateWithLifecycle()
     var showCourseDialog by remember { mutableStateOf(false) }
     var sessionCourseId by remember { mutableStateOf<Long?>(null) }
@@ -76,6 +74,9 @@ fun CoursesScreen(viewModel: StudyHubViewModel) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+            if (onOpenSetup != null) {
+                TextButton(onClick = onOpenSetup) { Text("Setup") }
+            }
             Button(onClick = { showCourseDialog = true }) {
                 Icon(Icons.Filled.Add, contentDescription = null)
                 Spacer(Modifier.width(6.dp))
@@ -86,7 +87,7 @@ fun CoursesScreen(viewModel: StudyHubViewModel) {
         if (courses.isEmpty()) {
             EmptyState(
                 title = "No courses yet",
-                subtitle = "Add a course, then attach classes, assignments and exams to it.",
+                subtitle = "Pick your programme in Setup to fill these in automatically, or add a course by hand.",
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
         } else {
@@ -119,7 +120,7 @@ fun CoursesScreen(viewModel: StudyHubViewModel) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(course.name, style = MaterialTheme.typography.titleMedium)
                                 Text(
-                                    text = "${course.code} · ${course.credits} credits",
+                                    text = "${course.code} Â· ${course.credits} credits",
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -160,24 +161,23 @@ fun CoursesScreen(viewModel: StudyHubViewModel) {
     }
 
     sessionCourseId?.let { id ->
-        val course = courses.firstOrNull { it.id == id }
-        if (course != null) {
-            AddSessionDialog(
-                courseLabel = "${course.code} · ${course.name}",
-                onDismiss = { sessionCourseId = null },
-                onConfirm = { day, start, end, room ->
-                    viewModel.addSession(id, day, start, end, room)
-                    sessionCourseId = null
-                }
-            )
-        }
+        SessionDialog(
+            courses = courses,
+            initial = null,
+            preSelectCourseId = id,
+            onDismiss = { sessionCourseId = null },
+            onSave = { courseId, day, start, end, room ->
+                viewModel.addSession(courseId, day, start, end, room)
+                sessionCourseId = null
+            }
+        )
     }
 
     assignmentCourseId?.let { id ->
         val course = courses.firstOrNull { it.id == id }
         if (course != null) {
             AddAssignmentDialog(
-                courseLabel = "${course.code} · ${course.name}",
+                courseLabel = "${course.code} Â· ${course.name}",
                 onDismiss = { assignmentCourseId = null },
                 onConfirm = { title, dueAt, priority ->
                     viewModel.addAssignment(id, title, dueAt, priority)
@@ -191,7 +191,7 @@ fun CoursesScreen(viewModel: StudyHubViewModel) {
         val course = courses.firstOrNull { it.id == id }
         if (course != null) {
             AddExamDialog(
-                courseLabel = "${course.code} · ${course.name}",
+                courseLabel = "${course.code} Â· ${course.name}",
                 onDismiss = { examCourseId = null },
                 onConfirm = { title, startsAt, duration, room, notes ->
                     viewModel.addExam(id, title, startsAt, duration, room, notes)
@@ -246,122 +246,6 @@ private fun AddCourseDialog(
             TextButton(onClick = { onConfirm(name, code, credits.toIntOrNull() ?: 3) }) {
                 Text("Add")
             }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
-    )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun AddSessionDialog(
-    courseLabel: String,
-    onDismiss: () -> Unit,
-    onConfirm: (Int, Int, Int, String) -> Unit
-) {
-    var day by remember { mutableStateOf(1) }
-    var start by remember { mutableStateOf(LocalTime.of(8, 0)) }
-    var end by remember { mutableStateOf(LocalTime.of(10, 0)) }
-    var room by remember { mutableStateOf("") }
-    var dayOpen by remember { mutableStateOf(false) }
-    var use24h by remember { mutableStateOf(true) }
-
-    val durationMinutes = Duration.between(start, end).toMinutes()
-    val valid = durationMinutes > 0
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Add class") },
-        text = {
-            Column {
-                Text(
-                    courseLabel,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.height(12.dp))
-                ExposedDropdownMenuBox(
-                    expanded = dayOpen,
-                    onExpandedChange = { dayOpen = it }
-                ) {
-                    OutlinedTextField(
-                        value = TimeUtil.dayLabel(day),
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Day") },
-                        trailingIcon = {
-                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = dayOpen)
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor()
-                    )
-                    ExposedDropdownMenu(
-                        expanded = dayOpen,
-                        onDismissRequest = { dayOpen = false }
-                    ) {
-                        for (d in 1..7) {
-                            DropdownMenuItem(
-                                text = { Text(TimeUtil.dayLabel(d)) },
-                                onClick = { day = d; dayOpen = false }
-                            )
-                        }
-                    }
-                }
-                Spacer(Modifier.height(14.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    TimePickerField(
-                        time = start,
-                        onTimeChange = { start = it },
-                        modifier = Modifier.weight(1f),
-                        label = "Starts",
-                        is24Hour = use24h
-                    )
-                    TimePickerField(
-                        time = end,
-                        onTimeChange = { end = it },
-                        modifier = Modifier.weight(1f),
-                        label = "Ends",
-                        is24Hour = use24h
-                    )
-                }
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = if (valid)
-                        "Length ${TimeUtil.formatClock(start.hour * 60 + start.minute)} to " +
-                            TimeUtil.formatClock(end.hour * 60 + end.minute)
-                    else "End time must be after the start time",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (valid) MaterialTheme.colorScheme.onSurfaceVariant
-                    else MaterialTheme.colorScheme.error
-                )
-                Spacer(Modifier.height(10.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Switch(checked = use24h, onCheckedChange = { use24h = it })
-                    Spacer(Modifier.width(10.dp))
-                    Text("24-hour time", style = MaterialTheme.typography.bodyMedium)
-                }
-                Spacer(Modifier.height(10.dp))
-                OutlinedTextField(
-                    value = room,
-                    onValueChange = { room = it },
-                    label = { Text("Room (optional)") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                enabled = valid,
-                onClick = {
-                    onConfirm(
-                        day,
-                        start.hour * 60 + start.minute,
-                        end.hour * 60 + end.minute,
-                        room
-                    )
-                }
-            ) { Text("Add") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )

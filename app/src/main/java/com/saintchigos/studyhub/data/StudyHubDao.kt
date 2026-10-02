@@ -35,6 +35,9 @@ interface StudyHubDao {
     @Update
     suspend fun updateSession(session: ClassSession)
 
+    @Query("SELECT * FROM class_sessions WHERE id = :id")
+    suspend fun getSession(id: Long): ClassSession?
+
     @Query("DELETE FROM class_sessions WHERE id = :id")
     suspend fun deleteSession(id: Long)
 
@@ -103,9 +106,135 @@ interface StudyHubDao {
     )
     fun observeUpcomingExams(now: Long): Flow<List<ExamWithCourse>>
 
+    @Query(
+        """
+        SELECT s.id AS sessionId, s.courseId AS courseId, c.name AS courseName,
+               c.code AS courseCode, c.colorIndex AS colorIndex, s.dayOfWeek AS dayOfWeek,
+               s.startMinute AS startMinute, s.endMinute AS endMinute, s.room AS room
+        FROM class_sessions s
+        INNER JOIN courses c ON c.id = s.courseId
+        ORDER BY s.dayOfWeek, s.startMinute
+        """
+    )
+    fun observeAllSessions(): Flow<List<SessionWithCourse>>
+
+    @Query(
+        """
+        SELECT s.id AS sessionId, s.courseId AS courseId, c.name AS courseName,
+               c.code AS courseCode, c.colorIndex AS colorIndex, s.dayOfWeek AS dayOfWeek,
+               s.startMinute AS startMinute, s.endMinute AS endMinute, s.room AS room
+        FROM class_sessions s
+        INNER JOIN courses c ON c.id = s.courseId
+        ORDER BY s.dayOfWeek, s.startMinute
+        """
+    )
+    suspend fun getAllSessions(): List<SessionWithCourse>
+
     @Query("SELECT COUNT(*) FROM assignments WHERE isDone = 0 AND dueAt < :now")
     fun observeOverdueCount(now: Long): Flow<Int>
 
     @Query("SELECT COUNT(*) FROM assignments WHERE isDone = 0 AND dueAt >= :now")
     fun observePendingCount(now: Long): Flow<Int>
+
+    // ---- programmes and plans -------------------------------------------------
+
+    @Query("SELECT COUNT(*) FROM programmes")
+    suspend fun countProgrammes(): Int
+
+    @Insert
+    suspend fun insertProgramme(programme: Programme): Long
+
+    @Insert
+    suspend fun insertPlan(plan: ProgrammePlan): Long
+
+    @Insert
+    suspend fun insertPlanCourses(courses: List<PlanCourse>): List<Long>
+
+    @Insert
+    suspend fun insertPlanSessions(sessions: List<PlanSession>)
+
+    @Query(
+        """
+        SELECT p.id AS planId, g.id AS programmeId, g.name AS programmeName,
+               p.year AS year, p.semester AS semester, g.isCustom AS isCustom,
+               CASE WHEN a.planId IS NULL THEN 0 ELSE 1 END AS applied
+        FROM programme_plans p
+        INNER JOIN programmes g ON g.id = p.programmeId
+        LEFT JOIN applied_plans a ON a.planId = p.id
+        ORDER BY g.isCustom DESC, g.name, p.year DESC, p.semester
+        """
+    )
+    fun observePlans(): Flow<List<PlanWithProgramme>>
+
+    @Query("SELECT * FROM programme_plans WHERE id = :planId")
+    suspend fun getPlan(planId: Long): ProgrammePlan?
+
+    @Query("SELECT * FROM programme_plans")
+    suspend fun getAllPlans(): List<ProgrammePlan>
+
+    @Query("SELECT * FROM plan_courses WHERE planId = :planId ORDER BY code")
+    suspend fun getPlanCourses(planId: Long): List<PlanCourse>
+
+    @Query("SELECT COUNT(*) FROM plan_courses WHERE planId = :planId")
+    suspend fun countPlanCourses(planId: Long): Int
+
+    @Query(
+        """
+        SELECT ps.* FROM plan_sessions ps
+        INNER JOIN plan_courses pc ON pc.id = ps.planCourseId
+        WHERE pc.planId = :planId
+        ORDER BY ps.dayOfWeek, ps.startMinute
+        """
+    )
+    suspend fun getPlanSessions(planId: Long): List<PlanSession>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun markPlanAppliedRow(applied: AppliedPlan)
+
+    @Query("DELETE FROM applied_plans WHERE planId = :planId")
+    suspend fun unmarkPlanApplied(planId: Long)
+
+    @Query("SELECT planId FROM applied_plans")
+    suspend fun getAppliedPlanIds(): List<Long>
+
+    @Query(
+        """
+        SELECT pc.planId AS planId, COUNT(DISTINCT pc.id) AS courses, COUNT(ps.id) AS sessions
+        FROM plan_courses pc
+        LEFT JOIN plan_sessions ps ON ps.planCourseId = pc.id
+        GROUP BY pc.planId
+        """
+    )
+    fun observePlanStats(): Flow<List<PlanStats>>
+
+    // ---- plan application helpers --------------------------------------------
+
+    @Query("SELECT * FROM courses WHERE code = :code LIMIT 1")
+    suspend fun getCourseByCode(code: String): Course?
+
+    @Query("SELECT * FROM class_sessions WHERE courseId = :courseId")
+    suspend fun getSessionsForCourse(courseId: Long): List<ClassSession>
+
+    @Query("SELECT COUNT(*) FROM assignments WHERE courseId = :courseId")
+    suspend fun countAssignmentsForCourse(courseId: Long): Int
+
+    @Query("SELECT COUNT(*) FROM exams WHERE courseId = :courseId")
+    suspend fun countExamsForCourse(courseId: Long): Int
+
+    // ---- bulk delete for "delete all my data" -----------------------------
+
+    @Query("DELETE FROM class_sessions")
+    suspend fun deleteAllSessions()
+
+    @Query("DELETE FROM assignments")
+    suspend fun deleteAllAssignments()
+
+    @Query("DELETE FROM exams")
+    suspend fun deleteAllExams()
+
+    @Query("DELETE FROM courses")
+    suspend fun deleteAllCourses()
+
+    @Query("DELETE FROM applied_plans")
+    suspend fun clearAppliedPlans()
 }
