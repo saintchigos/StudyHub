@@ -1,4 +1,4 @@
-package com.saintchigos.studyhub.ui.screens
+﻿package com.saintchigos.studyhub.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -358,7 +358,7 @@ private fun TermsSummary() {
     points.forEach { point ->
         Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
             Text(
-                text = "•",
+                text = "ÔÇó",
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary

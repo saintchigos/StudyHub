@@ -237,4 +237,37 @@ interface StudyHubDao {
 
     @Query("DELETE FROM applied_plans")
     suspend fun clearAppliedPlans()
+
+    // ---- catalogue merging -------------------------------------------------
+    // The shared catalogue is keyed by stable slugs so a released update edits an
+    // existing programme in place rather than duplicating it.
+
+    @Query("SELECT * FROM programmes WHERE slug = :slug LIMIT 1")
+    suspend fun getProgrammeBySlug(slug: String): Programme?
+
+    @Query("SELECT * FROM programme_plans WHERE slug = :slug LIMIT 1")
+    suspend fun getPlanBySlug(slug: String): ProgrammePlan?
+
+    @Query("SELECT * FROM programme_plans WHERE programmeId = :programmeId")
+    suspend fun getPlansForProgramme(programmeId: Long): List<ProgrammePlan>
+
+    @Query("SELECT * FROM programmes ORDER BY name")
+    suspend fun getAllProgrammes(): List<Programme>
+
+    @Query("UPDATE programmes SET name = :name WHERE id = :id")
+    suspend fun renameProgramme(id: Long, name: String)
+
+    @Query("UPDATE programme_plans SET year = :year, semester = :semester WHERE id = :id")
+    suspend fun updatePlanDetails(id: Long, year: Int, semester: String)
+
+    @Query("UPDATE programme_plans SET contributor = :contributor WHERE id = :id")
+    suspend fun setPlanContributor(id: Long, contributor: String?)
+
+    @Query("DELETE FROM plan_courses WHERE planId = :planId")
+    suspend fun deletePlanCourses(planId: Long)
+
+    @Query("SELECT * FROM plan_sessions WHERE planCourseId = :planCourseId ORDER BY dayOfWeek, startMinute")
+    suspend fun getPlanSessionsForCourse(planCourseId: Long): List<PlanSession>
+    @Query("SELECT * FROM programmes WHERE id = :id")
+    suspend fun getProgramme(id: Long): Programme?
 }

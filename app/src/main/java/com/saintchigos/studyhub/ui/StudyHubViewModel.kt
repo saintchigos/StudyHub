@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.saintchigos.studyhub.data.Assignment
 import com.saintchigos.studyhub.data.AssignmentWithCourse
+import com.saintchigos.studyhub.data.CatalogueJson
 import com.saintchigos.studyhub.data.ClassSession
 import com.saintchigos.studyhub.data.Course
 import com.saintchigos.studyhub.data.Exam
@@ -143,6 +144,50 @@ class StudyHubViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Builds a shareable catalogue file from what is in this device. */
+    fun exportCatalogue(contributor: String?, onReady: (String) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val name = contributor?.trim()?.ifEmpty { null }
+            val seeds = StudyHubDatabase.exportSeeds(dao)
+            if (seeds.isEmpty()) return@launch
+            onReady(CatalogueJson.build(seeds, name))
+        }
+    }
+
+    /**
+     * Merges a catalogue file from a beta tester. Existing programmes are updated in
+     * place by slug, so importing the same file twice is harmless and the student's
+     * own courses, timetable, assignments and exams are never touched.
+     */
+    fun importCatalogue(raw: String, onResult: (ImportSummary) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val summary = runCatching {
+                val seeds = CatalogueJson.parse(raw)
+                if (seeds.isEmpty()) throw IllegalArgumentException("No programmes found in that file.")
+                val before = dao.countProgrammes()
+                StudyHubDatabase.mergeCatalogue(dao, seeds)
+                val after = dao.countProgrammes()
+                ImportSummary(
+                    programmes = after - before,
+                    plans = seeds.size,
+                    courses = seeds.sumOf { it.courses.size },
+                    sessions = seeds.sumOf { seed -> seed.courses.sumOf { it.sessions.size } }
+                )
+            }.getOrElse { error ->
+                ImportSummary(error = error.message ?: "That file could not be read.")
+            }
+            onResult(summary)
+        }
+    }
+
+    data class ImportSummary(
+        val programmes: Int = 0,
+        val plans: Int = 0,
+        val courses: Int = 0,
+        val sessions: Int = 0,
+        val error: String? = null
+    )
+
     /** Wipes every student record. The programme catalogue is kept so setup still works. */
     fun deleteAllData() {
         viewModelScope.launch(Dispatchers.IO) {
@@ -158,7 +203,9 @@ class StudyHubViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
-            StudyHubDatabase.seedCatalogueIfEmpty(dao)
+            // The bundled catalogue is merged on every launch: offline-first, and a
+            // released update adds new programmes without duplicating existing ones.
+            StudyHubDatabase.mergeCatalogue(dao, StudyHubDatabase.readBundledCatalogue(app))
             adoptExistingSetup()
         }
     }

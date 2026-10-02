@@ -9,11 +9,20 @@ import androidx.room.PrimaryKey
  * A degree programme such as "Computers and Statistics". Programmes are the catalogue
  * a student picks from so they never have to type their whole timetable by hand.
  */
-@Entity(tableName = "programmes")
+@Entity(
+    tableName = "programmes",
+    indices = [Index(value = ["slug"], unique = true)]
+)
 data class Programme(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
-    val isCustom: Boolean = false
+    val isCustom: Boolean = false,
+    /**
+     * Stable identifier used by the shared catalogue (e.g. "computers-and-statistics").
+     * Lets a released catalogue update an existing programme in place instead of
+     * creating a duplicate every time the app is updated.
+     */
+    val slug: String = ""
 )
 
 /** One year/semester offering of a programme, e.g. Year 3 Semester A. */
@@ -25,13 +34,17 @@ data class Programme(
         childColumns = ["programmeId"],
         onDelete = ForeignKey.CASCADE
     )],
-    indices = [Index("programmeId")]
+    indices = [Index("programmeId"), Index(value = ["slug"], unique = true)]
 )
 data class ProgrammePlan(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val programmeId: Long,
     val year: Int,
-    val semester: String
+    val semester: String,
+    /** Stable identifier for the year/semester offering, e.g. "…-y3-a". */
+    val slug: String = "",
+    /** Optional credit for the beta tester who typed this timetable in. */
+    val contributor: String? = null
 )
 
 /** A course belonging to a plan, plus the template used to seed a new student. */

@@ -1,0 +1,73 @@
+{
+  "formatVersion": 1,
+  "app": "StudyHub",
+  "note": "Shared programme catalogue. Beta testers: build your programme in the app, then use Settings > Data and privacy > Export catalogue and send the file to Chigos Media. It is merged into this file for the next release.",
+  "programmes": [
+    {
+      "slug": "computers-and-statistics",
+      "name": "Computers and Statistics",
+      "plans": [
+        {
+          "year": 3,
+          "semester": "A",
+          "contributor": "",
+          "courses": [
+            {
+              "code": "CS3400",
+              "name": "DATA STRUCTURES AND ALGORITHM",
+              "credits": 4,
+              "colorIndex": 3,
+              "sessions": [
+                { "day": 1, "start": "09:00", "end": "11:00", "room": "DTF103" },
+                { "day": 2, "start": "12:10", "end": "15:10", "room": "DTF104" },
+                { "day": 4, "start": "08:00", "end": "09:00", "room": "CMP107" }
+              ]
+            },
+            {
+              "code": "CS3520",
+              "name": "COMPUTER ORGANIZATION AND ARCHITECTURE I",
+              "credits": 5,
+              "colorIndex": 2,
+              "sessions": [
+                { "day": 2, "start": "08:00", "end": "10:00", "room": "DTF104" },
+                { "day": 4, "start": "13:10", "end": "14:10", "room": "CMP107" },
+                { "day": 5, "start": "11:10", "end": "13:10", "room": "ICT Lab" }
+              ]
+            },
+            {
+              "code": "CS3541",
+              "name": "COMPUTER COMMUNICATIONS AND NETWORKS I",
+              "credits": 5,
+              "colorIndex": 4,
+              "sessions": [
+                { "day": 2, "start": "10:10", "end": "12:10", "room": "DTF101" },
+                { "day": 3, "start": "13:10", "end": "15:10", "room": "CMP103" },
+                { "day": 4, "start": "11:10", "end": "13:10", "room": "CISCO Lab" }
+              ]
+            },
+            {
+              "code": "ST3403",
+              "name": "Linear Algebra",
+              "credits": 4,
+              "colorIndex": 0,
+              "sessions": [
+                { "day": 2, "start": "15:10", "end": "17:10", "room": "DTF107" }
+              ]
+            },
+            {
+              "code": "ST3501",
+              "name": "Survey Methods and Applications",
+              "credits": 5,
+              "colorIndex": 1,
+              "sessions": [
+                { "day": 3, "start": "16:10", "end": "17:10", "room": "ETF3" },
+                { "day": 4, "start": "09:00", "end": "11:10", "room": "CMP103" },
+                { "day": 5, "start": "08:00", "end": "11:10", "room": "CMP103" }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

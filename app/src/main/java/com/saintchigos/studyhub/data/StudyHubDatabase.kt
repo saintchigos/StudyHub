@@ -20,13 +20,22 @@ import kotlinx.coroutines.launch
         ProgrammePlan::class,
         PlanCourse::class,
         PlanSession::class,
-        AppliedPlan::class
+        AppliedPlan::class,
+        Account::class,
+        VerificationCode::class,
+        AuthSession::class,
+        AccountProgramme::class,
+        Connection::class,
+        Block::class,
+        Report::class,
+        Message::class
     ],
-    version = 2,
+    version = 4,
     exportSchema = false
 )
 abstract class StudyHubDatabase : RoomDatabase() {
     abstract fun dao(): StudyHubDao
+    abstract fun communityDao(): CommunityDao
 
     companion object {
         @Volatile
@@ -39,9 +48,169 @@ abstract class StudyHubDatabase : RoomDatabase() {
                     StudyHubDatabase::class.java,
                     "studyhub.db"
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                     .build()
                     .also { instance = it }
+            }
+        }
+
+        /**
+         * Adds the account and community tables. Existing timetable, programme and
+         * catalogue rows are untouched, so upgrading never loses a student's work.
+         */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `accounts` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`username` TEXT NOT NULL, `displayName` TEXT NOT NULL, " +
+                        "`passwordHash` TEXT NOT NULL, `verified` INTEGER NOT NULL, " +
+                        "`createdAt` INTEGER NOT NULL)"
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_accounts_username` " +
+                        "ON `accounts` (`username`)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `verification_codes` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`username` TEXT NOT NULL, `codeHash` TEXT NOT NULL, " +
+                        "`expiresAt` INTEGER NOT NULL, `attempts` INTEGER NOT NULL, " +
+                        "`consumed` INTEGER NOT NULL)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_verification_codes_username` " +
+                        "ON `verification_codes` (`username`)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `auth_sessions` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`accountId` INTEGER NOT NULL, `token` TEXT NOT NULL, " +
+                        "`createdAt` INTEGER NOT NULL, `expiresAt` INTEGER NOT NULL, " +
+                        "FOREIGN KEY(`accountId`) REFERENCES `accounts`(`id`) " +
+                        "ON UPDATE NO ACTION ON DELETE CASCADE )"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_auth_sessions_accountId` " +
+                        "ON `auth_sessions` (`accountId`)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `account_programmes` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`accountId` INTEGER NOT NULL, `programmeSlug` TEXT NOT NULL, " +
+                        "`programmeName` TEXT NOT NULL, `year` INTEGER NOT NULL, " +
+                        "`semester` TEXT NOT NULL)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_account_programmes_accountId` " +
+                        "ON `account_programmes` (`accountId`)"
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS " +
+                        "`index_account_programmes_programmeSlug_year_semester` " +
+                        "ON `account_programmes` (`programmeSlug`, `year`, `semester`)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `connections` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`requesterId` INTEGER NOT NULL, `addresseeId` INTEGER NOT NULL, " +
+                        "`status` TEXT NOT NULL, `createdAt` INTEGER NOT NULL)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_connections_requesterId` " +
+                        "ON `connections` (`requesterId`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_connections_addresseeId` " +
+                        "ON `connections` (`addresseeId`)"
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_connections_requesterId_addresseeId` " +
+                        "ON `connections` (`requesterId`, `addresseeId`)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `blocks` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`accountId` INTEGER NOT NULL, `blockedId` INTEGER NOT NULL, " +
+                        "`createdAt` INTEGER NOT NULL)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_blocks_accountId` ON `blocks` (`accountId`)"
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_blocks_accountId_blockedId` " +
+                        "ON `blocks` (`accountId`, `blockedId`)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `reports` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`reporterId` INTEGER NOT NULL, `reportedId` INTEGER NOT NULL, " +
+                        "`reason` TEXT NOT NULL, `details` TEXT NOT NULL, " +
+                        "`createdAt` INTEGER NOT NULL, `handled` INTEGER NOT NULL)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_reports_reporterId` ON `reports` (`reporterId`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_reports_reportedId` ON `reports` (`reportedId`)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `messages` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`programmeSlug` TEXT NOT NULL, `year` INTEGER NOT NULL, " +
+                        "`semester` TEXT NOT NULL, `senderId` INTEGER NOT NULL, " +
+                        "`senderName` TEXT NOT NULL, `body` TEXT NOT NULL, " +
+                        "`createdAt` INTEGER NOT NULL, `synced` INTEGER NOT NULL)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_messages_programmeSlug_year_semester` " +
+                        "ON `messages` (`programmeSlug`, `year`, `semester`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_messages_senderId` ON `messages` (`senderId`)"
+                )
+            }
+        }
+
+        /**
+         * Gives programmes and plans stable slugs so a released catalogue update edits
+         * an existing programme in place instead of duplicating it, and adds the
+         * optional beta-tester credit.
+         */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `programmes` ADD COLUMN `slug` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE `programme_plans` ADD COLUMN `slug` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE `programme_plans` ADD COLUMN `contributor` TEXT")
+
+                // Backfill slugs from the existing names so nothing is duplicated on upgrade.
+                val programmes = mutableListOf<Pair<Long, String>>()
+                db.query("SELECT id, name FROM programmes").use { cursor ->
+                    while (cursor.moveToNext()) {
+                        val id = cursor.getLong(0)
+                        val name = cursor.getString(1) ?: ""
+                        val slug = CatalogueJson.slugify(name)
+                        db.execSQL("UPDATE programmes SET slug = ? WHERE id = ?", arrayOf<Any>(slug, id))
+                        programmes.add(id to slug)
+                    }
+                }
+                db.query("SELECT id, programmeId, year, semester FROM programme_plans").use { cursor ->
+                    while (cursor.moveToNext()) {
+                        val id = cursor.getLong(0)
+                        val programmeId = cursor.getLong(1)
+                        val year = cursor.getInt(2)
+                        val semester = cursor.getString(3) ?: "A"
+                        val base = programmes.firstOrNull { it.first == programmeId }?.second ?: "programme"
+                        val slug = CatalogueJson.planSlug(base, year, semester)
+                        db.execSQL(
+                            "UPDATE programme_plans SET slug = ? WHERE id = ?",
+                            arrayOf<Any>(slug, id)
+                        )
+                    }
+                }
+
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_programmes_slug` ON `programmes` (`slug`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_programme_plans_slug` ON `programme_plans` (`slug`)")
             }
         }
 
@@ -101,49 +270,155 @@ abstract class StudyHubDatabase : RoomDatabase() {
             }
         }
 
-        /** Inserts the built-in catalogue once, so the picker is never empty. */
-        suspend fun seedCatalogueIfEmpty(dao: StudyHubDao) {
-            if (dao.countProgrammes() > 0) return
-            for (seed in PlanCatalogue.seeds) {
-                    val programmeId = dao.insertProgramme(
-                        Programme(name = seed.programme, isCustom = false)
+        /**
+         * Merges catalogue templates into the database, keyed by slug.
+         *
+         * Runs on every launch and after an import, so a released catalogue update adds
+         * new programmes without duplicating existing ones and without ever touching
+         * the student's own courses, timetable, assignments or exams.
+         */
+        suspend fun mergeCatalogue(dao: StudyHubDao, seeds: List<PlanSeed>) {
+            for (seed in seeds) {
+                val programmeSlug = CatalogueJson.slugify(seed.programme)
+                var programme = dao.getProgrammeBySlug(programmeSlug)
+                if (programme == null) {
+                    val id = dao.insertProgramme(
+                        Programme(name = seed.programme, isCustom = false, slug = programmeSlug)
                     )
-                    val planId = dao.insertPlan(
+                    programme = dao.getProgrammeBySlug(programmeSlug)
+                        ?: Programme(id = id, name = seed.programme, slug = programmeSlug)
+                } else if (programme.name != seed.programme) {
+                    dao.renameProgramme(programme.id, seed.programme)
+                    programme = programme.copy(name = seed.programme)
+                }
+                val programmeId = programme.id
+
+                val slug = CatalogueJson.planSlug(programmeSlug, seed.year, seed.semester)
+                val existing = dao.getPlanBySlug(slug)
+                val planId = if (existing == null) {
+                    dao.insertPlan(
                         ProgrammePlan(
                             programmeId = programmeId,
                             year = seed.year,
-                            semester = seed.semester
+                            semester = seed.semester,
+                            slug = slug,
+                            contributor = seed.contributor
                         )
                     )
-                    val courseIds = dao.insertPlanCourses(
-                        seed.courses.map {
-                            PlanCourse(
-                                planId = planId,
-                                name = it.name,
-                                code = it.code,
-                                credits = it.credits,
-                                colorIndex = it.colorIndex
-                            )
-                        }
-                    )
-                    val sessionRows = mutableListOf<PlanSession>()
-                    seed.courses.forEachIndexed { index, course ->
-                        val planCourseId = courseIds[index]
-                        course.sessions.forEach {
-                            sessionRows.add(
-                                PlanSession(
-                                    planCourseId = planCourseId,
-                                    dayOfWeek = it.dayOfWeek,
-                                    startMinute = it.startMinute,
-                                    endMinute = it.endMinute,
-                                    room = it.room
-                                )
-                            )
-                        }
+                } else {
+                    if (existing.year != seed.year || existing.semester != seed.semester) {
+                        dao.updatePlanDetails(existing.id, seed.year, seed.semester)
                     }
-                    if (sessionRows.isNotEmpty()) dao.insertPlanSessions(sessionRows)
+                    if (seed.contributor != null && existing.contributor != seed.contributor) {
+                        dao.setPlanContributor(existing.id, seed.contributor)
+                    }
+                    existing.id
+                }
+
+                // Template rows only; replacing them never affects real student data.
+                val planCourses = dao.getPlanCourses(planId)
+                if (planCourses.isNotEmpty() && sameTemplate(dao, planCourses, seed)) continue
+
+                dao.deletePlanCourses(planId)
+                val courseIds = dao.insertPlanCourses(
+                    seed.courses.map {
+                        PlanCourse(
+                            planId = planId,
+                            name = it.name,
+                            code = it.code,
+                            credits = it.credits,
+                            colorIndex = it.colorIndex
+                        )
+                    }
+                )
+                val sessionRows = mutableListOf<PlanSession>()
+                seed.courses.forEachIndexed { index, course ->
+                    val planCourseId = courseIds[index]
+                    course.sessions.forEach {
+                        sessionRows.add(
+                            PlanSession(
+                                planCourseId = planCourseId,
+                                dayOfWeek = it.dayOfWeek,
+                                startMinute = it.startMinute,
+                                endMinute = it.endMinute,
+                                room = it.room
+                            )
+                        )
+                    }
+                }
+                if (sessionRows.isNotEmpty()) dao.insertPlanSessions(sessionRows)
+            }
+        }
+
+        /** True when the stored template already matches, so we can skip a rewrite. */
+        private suspend fun sameTemplate(dao: StudyHubDao, stored: List<PlanCourse>, seed: PlanSeed): Boolean {
+            if (stored.size != seed.courses.size) return false
+            return stored.all { row ->
+                val match = seed.courses.firstOrNull {
+                    it.code.equals(row.code, ignoreCase = true) &&
+                        it.name.equals(row.name, ignoreCase = true) &&
+                        it.credits == row.credits &&
+                        it.colorIndex == row.colorIndex
+                } ?: return false
+                val sessions = dao.getPlanSessionsForCourse(row.id)
+                if (sessions.size != match.sessions.size) return false
+                sessions.all { s ->
+                    match.sessions.any {
+                        it.dayOfWeek == s.dayOfWeek &&
+                            it.startMinute == s.startMinute &&
+                            it.endMinute == s.endMinute &&
+                            it.room.equals(s.room, ignoreCase = true)
+                    }
                 }
             }
+        }
+
+        /** Reads the catalogue that ships inside the APK - always available, offline. */
+        fun readBundledCatalogue(context: Context): List<PlanSeed> = try {
+            context.assets.open(CatalogueJson.ASSET_NAME).bufferedReader().use { reader ->
+                CatalogueJson.parse(reader.readText())
+            }
+        } catch (error: Exception) {
+            emptyList()
+        }
+
+        /** Seeds from the bundled file. Safe to call on every launch. */
+        suspend fun seedCatalogueIfEmpty(context: Context, dao: StudyHubDao) {
+            if (dao.countProgrammes() > 0) return
+            mergeCatalogue(dao, readBundledCatalogue(context))
+        }
+
+        /** Reads the whole current catalogue back out of the database. */
+        suspend fun exportSeeds(dao: StudyHubDao, includeCustom: Boolean = true): List<PlanSeed> {
+            val seeds = mutableListOf<PlanSeed>()
+            for (programme in dao.getAllProgrammes()) {
+                if (programme.isCustom && !includeCustom) continue
+                for (plan in dao.getPlansForProgramme(programme.id)) {
+                    val courses = dao.getPlanCourses(plan.id)
+                    if (courses.isEmpty()) continue
+                    seeds.add(
+                        PlanSeed(
+                            programme = programme.name,
+                            year = plan.year,
+                            semester = plan.semester,
+                            contributor = plan.contributor,
+                            courses = courses.map { course ->
+                                PlanCourseSeed(
+                                    code = course.code,
+                                    name = course.name,
+                                    credits = course.credits,
+                                    colorIndex = course.colorIndex,
+                                    sessions = dao.getPlanSessionsForCourse(course.id).map {
+                                        PlanSessionSeed(it.dayOfWeek, it.startMinute, it.endMinute, it.room)
+                                    }
+                                )
+                            }
+                        )
+                    )
+                }
+            }
+            return seeds
+        }
 
         /**
          * Copies a plan into the student's timetable without destroying anything:
