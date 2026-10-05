@@ -34,6 +34,29 @@ class StudyHubPrefs(context: Context) {
         get() = prefs.getBoolean(KEY_TERMS, false)
         set(value) = prefs.edit().putBoolean(KEY_TERMS, value).apply()
 
+    /**
+     * Day of the last class alert the student acted on, as an epoch day number.
+     * Used to show a study streak. Stored as a long so no new table is needed.
+     */
+    var lastActiveDay: Long
+        get() = prefs.getLong(KEY_LAST_ACTIVE_DAY, 0L)
+        set(value) = prefs.edit().putLong(KEY_LAST_ACTIVE_DAY, value).apply()
+
+    /** Length of the current streak, kept alongside [lastActiveDay]. */
+    var streakDays: Int
+        get() = prefs.getInt(KEY_STREAK_DAYS, 0)
+        set(value) = prefs.edit().putInt(KEY_STREAK_DAYS, value).apply()
+
+    /** Whether the one-time welcome tour has been dismissed. */
+    var seenWelcome: Boolean
+        get() = prefs.getBoolean(KEY_SEEN_WELCOME, false)
+        set(value) = prefs.edit().putBoolean(KEY_SEEN_WELCOME, value).apply()
+
+    /** Whether the "what's next" study tip card is showing on Home. */
+    var showStudyTips: Boolean
+        get() = prefs.getBoolean(KEY_SHOW_TIPS, true)
+        set(value) = prefs.edit().putBoolean(KEY_SHOW_TIPS, value).apply()
+
     /** "system", "light" or "dark". */
     var themeMode: String
         get() = prefs.getString(KEY_THEME, "system") ?: "system"
@@ -47,5 +70,9 @@ class StudyHubPrefs(context: Context) {
         const val KEY_VIBRATE = "reminder_vibrate"
         const val KEY_TERMS = "terms_accepted"
         const val KEY_THEME = "theme_mode"
+        const val KEY_LAST_ACTIVE_DAY = "last_active_day"
+        const val KEY_STREAK_DAYS = "streak_days"
+        const val KEY_SEEN_WELCOME = "seen_welcome"
+        const val KEY_SHOW_TIPS = "show_study_tips"
     }
 }

@@ -133,6 +133,45 @@ class StudyHubViewModel(app: Application) : AndroidViewModel(app) {
         _termsAccepted.value = true
     }
 
+    private val _showStudyTips = MutableStateFlow(prefs.showStudyTips)
+    val showStudyTips: StateFlow<Boolean> = _showStudyTips.asStateFlow()
+
+    fun setShowStudyTips(enabled: Boolean) {
+        prefs.showStudyTips = enabled
+        _showStudyTips.value = enabled
+    }
+
+    /**
+     * Consecutive days the student opened the app or ticked off work.
+     *
+     * Cheap to compute and needs no storage beyond one day number, which matters on a
+     * phone where every extra table is a migration.
+     */
+    private val _studyStreak = MutableStateFlow(0)
+    val studyStreak: StateFlow<Int> = _studyStreak.asStateFlow()
+
+    private val _showStreakBanner = MutableStateFlow(false)
+    val showStreakBanner: StateFlow<Boolean> = _showStreakBanner.asStateFlow()
+
+    fun dismissStreakBanner() {
+        _showStreakBanner.value = false
+    }
+
+    /** Called when the student completes work, which is what actually counts as study. */
+    fun noteStudyActivity() {
+        val today = TimeUtil.toEpochMillis(TimeUtil.now().toLocalDate().atStartOfDay()) / 86_400_000L
+        val last = prefs.lastActiveDay
+        val next = when (last) {
+            today -> prefs.streakDays
+            today - 1 -> prefs.streakDays + 1
+            else -> 1
+        }
+        prefs.lastActiveDay = today
+        prefs.streakDays = next
+        _studyStreak.value = next
+        _showStreakBanner.value = true
+    }
+
     fun sendTestReminder() {
         ClassAlarms.showTestNotification(getApplication())
     }
@@ -207,6 +246,17 @@ class StudyHubViewModel(app: Application) : AndroidViewModel(app) {
             // released update adds new programmes without duplicating existing ones.
             StudyHubDatabase.mergeCatalogue(dao, StudyHubDatabase.readBundledCatalogue(app))
             adoptExistingSetup()
+            restoreStreak()
+        }
+    }
+
+    /** Rebuilds the streak from the stored day number, so it survives a restart. */
+    private fun restoreStreak() {
+        val today = TimeUtil.toEpochMillis(TimeUtil.now().toLocalDate().atStartOfDay()) / 86_400_000L
+        val last = prefs.lastActiveDay
+        _studyStreak.value = when (last) {
+            today, today - 1 -> prefs.streakDays
+            else -> 0
         }
     }
 
@@ -296,6 +346,8 @@ class StudyHubViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             val existing = dao.getAssignment(id) ?: return@launch
             dao.updateAssignment(existing.copy(isDone = !currentDone))
+            // Marking work off is real study, so it feeds the streak.
+            if (!currentDone) noteStudyActivity()
         }
     }
 

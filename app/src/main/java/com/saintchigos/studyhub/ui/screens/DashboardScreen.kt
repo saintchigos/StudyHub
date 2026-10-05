@@ -19,6 +19,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
@@ -28,6 +29,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import com.saintchigos.studyhub.ui.components.ScreenHeader
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -50,6 +52,7 @@ import com.saintchigos.studyhub.ui.components.CourseTag
 import com.saintchigos.studyhub.ui.components.EmptyState
 import com.saintchigos.studyhub.ui.components.SectionHeader
 import com.saintchigos.studyhub.ui.components.StatCard
+import com.saintchigos.studyhub.ui.components.StreakBanner
 import com.saintchigos.studyhub.ui.components.courseColor
 import com.saintchigos.studyhub.ui.components.VerticalDivider
 import com.saintchigos.studyhub.ui.theme.SuccessGreen
@@ -74,6 +77,12 @@ fun DashboardScreen(
     val overdue = open.filter { it.dueAt < tick }
     val doneToday = assignments.count { it.isDone }
 
+    // Read above the LazyColumn: collectAsStateWithLifecycle cannot be called from
+    // inside a LazyListScope item lambda.
+    val streak by viewModel.studyStreak.collectAsStateWithLifecycle()
+    val showStreak by viewModel.showStreakBanner.collectAsStateWithLifecycle()
+    val showTips by viewModel.showStudyTips.collectAsStateWithLifecycle()
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
@@ -88,6 +97,24 @@ fun DashboardScreen(
         }
 
         item { CommunityCard(communityViewModel, onOpenAccount, onOpenCommunity) }
+
+        if (showStreak && streak > 0) {
+            item {
+                StreakBanner(
+                    streak = streak,
+                    onDismiss = { viewModel.dismissStreakBanner() }
+                )
+            }
+        }
+
+        if (showTips) {
+            item {
+                StudyTipCard(
+                    tip = studyTip(open.size, overdue.size, sessions.size),
+                    onDismiss = { viewModel.setShowStudyTips(false) }
+                )
+            }
+        }
 
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -108,6 +135,30 @@ fun DashboardScreen(
                     value = courses.size.toString(),
                     modifier = Modifier.weight(1f)
                 )
+            }
+        }
+
+        if (streak > 0) {
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    StatCard(
+                        label = "Study streak",
+                        value = "$streak day${if (streak == 1) "" else "s"}",
+                        modifier = Modifier.weight(1f),
+                        accent = WarningAmber
+                    )
+                    StatCard(
+                        label = "Done",
+                        value = doneToday.toString(),
+                        modifier = Modifier.weight(1f),
+                        accent = SuccessGreen
+                    )
+                    StatCard(
+                        label = "Credits",
+                        value = courses.sumOf { it.credits }.toString(),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
         }
 
@@ -360,6 +411,58 @@ fun DashboardScreen(
                         fontWeight = FontWeight.SemiBold
                     )
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Picks a study suggestion from what the student already has. No network, no tracking:
+ * just a nudge based on today's own workload.
+ */
+private fun studyTip(openTasks: Int, overdue: Int, todayClasses: Int): String = when {
+    overdue > 0 -> "You have $overdue overdue task${if (overdue == 1) "" else "s"}. " +
+        "Clear the oldest one first, then you can breathe."
+    openTasks > 6 -> "${openTasks} tasks are open. Pick the one worth the least and drop it " +
+        "or do it first."
+    openTasks == 0 -> "Nothing outstanding. Good moment to get ahead on next week's reading."
+    todayClasses > 0 -> "You have $todayClasses class${if (todayClasses == 1) "" else "es"} " +
+        "today. Check the room before you set off."
+    else -> "Add your assignments so StudyHub can warn you before they are due."
+}
+
+/** One rotating study suggestion, dismissible and remembered. */
+@Composable
+private fun StudyTipCard(tip: String, onDismiss: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 14.dp, end = 6.dp, top = 10.dp, bottom = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Study tip",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                )
+                Text(
+                    text = tip,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer
+                )
+            }
+            IconButton(onClick = onDismiss) {
+                Icon(
+                    imageVector = Icons.Filled.Close,
+                    contentDescription = "Hide study tips",
+                    tint = MaterialTheme.colorScheme.onTertiaryContainer
+                )
             }
         }
     }

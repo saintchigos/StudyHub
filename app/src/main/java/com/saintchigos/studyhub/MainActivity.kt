@@ -15,13 +15,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.CalendarViewWeek
+import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.Grade
 import androidx.compose.material.icons.filled.Groups
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.School
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.TaskAlt
+import androidx.compose.material.icons.filled.Quiz
+import androidx.compose.material.icons.filled.SpaceDashboard
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -94,13 +94,17 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+/**
+ * Bottom bar tabs. Icons are filled and distinct at a glance, because a student
+ * should not have to read six labels to find the timetable.
+ */
 private enum class Destination(val route: String, val label: String, val icon: ImageVector) {
-    Dashboard("dashboard", "Home", Icons.Filled.Home),
-    Timetable("timetable", "Timetable", Icons.Filled.CalendarMonth),
-    Assignments("assignments", "Tasks", Icons.Filled.TaskAlt),
-    Exams("exams", "Exams", Icons.Filled.Event),
-    Courses("courses", "Courses", Icons.Filled.School),
-    Settings("settings", "Settings", Icons.Filled.Settings)
+    Dashboard("dashboard", "Home", Icons.Filled.SpaceDashboard),
+    Timetable("timetable", "Classes", Icons.Filled.CalendarViewWeek),
+    Assignments("assignments", "Tasks", Icons.Filled.Checklist),
+    Exams("exams", "Exams", Icons.Filled.Quiz),
+    Courses("courses", "Courses", Icons.Filled.Grade),
+    Settings("settings", "More", Icons.Filled.Tune)
 }
 
 /**
