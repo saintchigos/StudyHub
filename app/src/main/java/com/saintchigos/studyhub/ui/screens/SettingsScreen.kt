@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Surface
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.AlertDialog
@@ -33,6 +35,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.saintchigos.studyhub.data.PlanWithProgramme
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.saintchigos.studyhub.ui.CommunityViewModel
 import com.saintchigos.studyhub.ui.StudyHubViewModel
 import com.saintchigos.studyhub.ui.components.AddMajorDialog
 import com.saintchigos.studyhub.ui.components.AddPlanCourseDialog
@@ -40,11 +44,10 @@ import com.saintchigos.studyhub.ui.components.AppSettingsSection
 import com.saintchigos.studyhub.ui.components.HowItWorks
 import com.saintchigos.studyhub.ui.components.NotificationSettings
 import com.saintchigos.studyhub.ui.components.PoweredBy
-import com.saintchigos.studyhub.ui.components.PrivacyPolicyDialog
+
 import com.saintchigos.studyhub.ui.components.ProgrammePlanCard
 import com.saintchigos.studyhub.ui.components.SectionHeader
 import com.saintchigos.studyhub.ui.components.SupportButton
-import com.saintchigos.studyhub.ui.components.TermsAndConditionsDialog
 import com.saintchigos.studyhub.ui.components.planLabel
 
 /**
@@ -55,8 +58,10 @@ import com.saintchigos.studyhub.ui.components.planLabel
 @Composable
 fun SettingsScreen(
     viewModel: StudyHubViewModel,
+    communityViewModel: CommunityViewModel,
     onOpenCommunity: () -> Unit = {},
-    onOpenAccount: () -> Unit = {}
+    onOpenAccount: () -> Unit = {},
+    onOpenLegal: (LegalKind) -> Unit = {}
 ) {
     val plans by viewModel.plans.collectAsStateWithLifecycle()
     val stats by viewModel.planStats.collectAsStateWithLifecycle()
@@ -66,9 +71,11 @@ fun SettingsScreen(
     var addingMajor by remember { mutableStateOf(false) }
     var addingCourseFor by remember { mutableStateOf<PlanWithProgramme?>(null) }
     var endingSemesterFor by remember { mutableStateOf<PlanWithProgramme?>(null) }
-    var showTerms by remember { mutableStateOf(false) }
-    var showPrivacy by remember { mutableStateOf(false) }
     var confirmDeleteAll by remember { mutableStateOf(false) }
+    var confirmSignOut by remember { mutableStateOf(false) }
+
+    val account by communityViewModel.account.collectAsStateWithLifecycle()
+    val membership by communityViewModel.membership.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     var versionName by remember { mutableStateOf("1.0") }
@@ -208,17 +215,62 @@ fun SettingsScreen(
             item {
                 Column {
                     SectionHeader("Your account and community")
-                    Text(
-                        text = "Create a password to join the community for your programme " +
-                            "and year. Find classmates, chat about the semester and ask for " +
-                            "help. Your timetable works without an account.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        TextButton(onClick = onOpenAccount) { Text("Sign in or create account") }
-                        TextButton(onClick = onOpenCommunity) { Text("Open community") }
+                    if (account == null) {
+                        Text(
+                            text = "Create a password to join the community for your " +
+                                "programme and year. Find classmates, chat about the " +
+                                "semester and ask for help. Your timetable works without " +
+                                "an account.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            TextButton(onClick = onOpenAccount) { Text("Create account") }
+                            TextButton(onClick = onOpenCommunity) { Text("Open community") }
+                        }
+                    } else {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                modifier = Modifier.size(44.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = (account?.displayName
+                                            ?: account?.username
+                                            ?: "?").take(1).uppercase(),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.size(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = account?.displayName ?: account?.username.orEmpty(),
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Text(
+                                    text = buildString {
+                                        append("@${account?.username.orEmpty()}")
+                                        membership?.let {
+                                            append("  ·  ")
+                                            append(prettySlug(it.programmeSlug))
+                                            append(" Year ${it.year}, Semester ${it.semester}")
+                                        }
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            TextButton(onClick = onOpenCommunity) { Text("Open community") }
+                            TextButton(onClick = { confirmSignOut = true }) { Text("Log out") }
+                        }
                     }
                 }
             }
@@ -238,10 +290,12 @@ fun SettingsScreen(
                     TermsSummary()
                     Spacer(Modifier.height(4.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        TextButton(onClick = { showTerms = true }) {
+                        TextButton(onClick = { onOpenLegal(LegalKind.Terms) }) {
                             Text("Read full terms and conditions")
                         }
-                        TextButton(onClick = { showPrivacy = true }) { Text("Privacy") }
+                        TextButton(onClick = { onOpenLegal(LegalKind.Privacy) }) {
+                            Text("Privacy")
+                        }
                     }
                     Text(
                         text = if (termsAccepted) "You accepted the terms on this device."
@@ -343,15 +397,26 @@ fun SettingsScreen(
             )
         }
 
-        if (showTerms) {
-            TermsAndConditionsDialog(
-                onAccept = { viewModel.acceptTerms() },
-                onDismiss = { showTerms = false }
+        if (confirmSignOut) {
+            AlertDialog(
+                onDismissRequest = { confirmSignOut = false },
+                title = { Text("Log out?") },
+                text = {
+                    Text(
+                        "You can log back in with the same username and password. " +
+                            "Your timetable stays on this device either way."
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        communityViewModel.signOut()
+                        confirmSignOut = false
+                    }) { Text("Log out") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { confirmSignOut = false }) { Text("Cancel") }
+                }
             )
-        }
-
-        if (showPrivacy) {
-            PrivacyPolicyDialog(onDismiss = { showPrivacy = false })
         }
 
         if (confirmDeleteAll) {
@@ -377,6 +442,12 @@ fun SettingsScreen(
         }
     }
 }
+
+/** Turns a stored slug like "computers-and-statistics" back into readable words. */
+private fun prettySlug(slug: String): String = slug
+    .split('-', ' ')
+    .filter { it.isNotBlank() }
+    .joinToString(" ") { word -> word.replaceFirstChar { it.uppercase() } }
 
 /** Plain-language version of the terms, shown without needing to open the dialog. */
 @Composable

@@ -15,10 +15,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.School
@@ -41,6 +43,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.saintchigos.studyhub.ui.CommunityViewModel
 import com.saintchigos.studyhub.ui.StudyHubViewModel
 import com.saintchigos.studyhub.ui.components.CourseAvatar
 import com.saintchigos.studyhub.ui.components.CourseTag
@@ -54,7 +57,12 @@ import com.saintchigos.studyhub.ui.theme.WarningAmber
 import com.saintchigos.studyhub.util.TimeUtil
 
 @Composable
-fun DashboardScreen(viewModel: StudyHubViewModel) {
+fun DashboardScreen(
+    viewModel: StudyHubViewModel,
+    communityViewModel: CommunityViewModel? = null,
+    onOpenAccount: () -> Unit = {},
+    onOpenCommunity: () -> Unit = {}
+) {
     val courses by viewModel.courses.collectAsStateWithLifecycle()
     val assignments by viewModel.assignments.collectAsStateWithLifecycle()
     val exams by viewModel.exams.collectAsStateWithLifecycle()
@@ -73,11 +81,13 @@ fun DashboardScreen(viewModel: StudyHubViewModel) {
     ) {
         item {
             ScreenHeader(
-                title = "StudyHub",
-                subtitle = TimeUtil.now()
-                    .format(java.time.format.DateTimeFormatter.ofPattern("EEEE d MMMM yyyy"))
+                title = TimeUtil.now()
+                    .format(java.time.format.DateTimeFormatter.ofPattern("EEEE d MMMM")),
+                subtitle = "Your day at a glance"
             )
         }
+
+        item { CommunityCard(communityViewModel, onOpenAccount, onOpenCommunity) }
 
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -351,6 +361,83 @@ fun DashboardScreen(viewModel: StudyHubViewModel) {
                     )
                 }
             }
+        }
+    }
+}
+
+/**
+ * Home page entry point to the community. Without an account it invites the student
+ * in; with one it shows who they are and how many classmates are in their year.
+ */
+@Composable
+private fun CommunityCard(
+    communityViewModel: CommunityViewModel?,
+    onOpenAccount: () -> Unit,
+    onOpenCommunity: () -> Unit
+) {
+    val vm = communityViewModel ?: return
+    val account by vm.account.collectAsStateWithLifecycle()
+    val membership by vm.membership.collectAsStateWithLifecycle()
+    val classmates by vm.classmates.collectAsStateWithLifecycle()
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        ),
+        onClick = { if (account == null) onOpenAccount() else onOpenCommunity() }
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(42.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Filled.Groups,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = if (account == null) {
+                        "Find your classmates"
+                    } else {
+                        "@${account?.username.orEmpty()}"
+                    },
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                Text(
+                    text = when {
+                        account == null ->
+                            "Create a password to join your programme's community, chat " +
+                                "and ask for help."
+                        membership == null ->
+                            "Join your programme to see who's in your year."
+                        classmates.isEmpty() ->
+                            "You're in. No classmates registered yet."
+                        else ->
+                            "${classmates.size} classmate${if (classmates.size == 1) "" else "s"} " +
+                                "in your programme"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer
+            )
         }
     }
 }

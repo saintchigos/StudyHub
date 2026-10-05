@@ -28,7 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-private val SECTIONS = listOf(
+val TERMS_SECTIONS = listOf(
     "About StudyHub" to listOf(
         "StudyHub is a student dashboard built by Chigos Media. It keeps your weekly " +
             "timetable, courses, assignments and exams in one place, and warns you before " +
@@ -72,6 +72,14 @@ private val SECTIONS = listOf(
             "times change and Chigos Media is not responsible for missed classes caused by " +
             "out-of-date information."
     ),
+    "Community features" to listOf(
+        "The community lets students in the same programme and semester find each " +
+            "other, send messages and ask for help with coursework.",
+        "You choose whether to join. If you do not create an account, nothing you do " +
+            "in StudyHub is visible to anyone else.",
+        "Until the community server is switched on, accounts and messages stay on " +
+            "this device only, so a classmate on another phone will not see you yet."
+    ),
     "Acceptable use" to listOf(
         "Use StudyHub for your own study organisation and for treating other students " +
             "decently in the community. Do not attempt to disrupt the app for other " +
@@ -83,9 +91,13 @@ private val SECTIONS = listOf(
 )
 
 /**
- * Terms and conditions. A student has to accept these once before they can finish
- * setting up the app.
+ * Kept only so onboarding can accept the terms without leaving the first-run flow.
+ * Settings and anywhere else uses `LegalScreen`, which scrolls properly.
  */
+@Deprecated(
+    "Use LegalScreen: a dialog cannot scroll reliably on a small screen.",
+    ReplaceWith("com.saintchigos.studyhub.ui.screens.LegalScreen")
+)
 @Composable
 fun TermsAndConditionsDialog(
     onAccept: () -> Unit,
@@ -95,20 +107,14 @@ fun TermsAndConditionsDialog(
 
     AlertDialog(
         onDismissRequest = { onDismiss?.invoke() },
-        title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Filled.Gavel,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(Modifier.size(8.dp))
-                Text("Terms and conditions")
-            }
-        },
+        title = { Text("Terms and conditions") },
         text = {
-            Column(modifier = Modifier.verticalScroll(rememberScrollState()).heightIn(max = 380.dp)) {
-                SECTIONS.forEach { (heading, paragraphs) ->
+            Column(
+                modifier = Modifier
+                    .heightIn(max = 320.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                TERMS_SECTIONS.forEach { (heading, paragraphs) ->
                     Text(
                         text = heading,
                         style = MaterialTheme.typography.titleSmall,
@@ -123,17 +129,17 @@ fun TermsAndConditionsDialog(
                         )
                     }
                 }
-                Spacer(Modifier.height(8.dp))
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Checkbox(checked = accepted, onCheckedChange = { accepted = it })
                     Spacer(Modifier.size(6.dp))
-                    Text("I have read and accept the terms", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        text = "I have read and accept the terms",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
                 }
-                Spacer(Modifier.height(4.dp))
-                PoweredBy()
             }
         },
         confirmButton = {

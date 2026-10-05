@@ -33,7 +33,6 @@ import com.saintchigos.studyhub.ui.components.PoweredBy
 import com.saintchigos.studyhub.ui.components.ProgrammePlanCard
 import com.saintchigos.studyhub.ui.components.SectionHeader
 import com.saintchigos.studyhub.ui.components.SupportButton
-import com.saintchigos.studyhub.ui.components.TermsAndConditionsDialog
 
 /**
  * First run page. A student picks a programme and their timetable is created for them,
@@ -168,9 +167,12 @@ fun OnboardingScreen(viewModel: StudyHubViewModel) {
         }
 
         if (showTerms) {
-            TermsAndConditionsDialog(
-                onAccept = { viewModel.acceptTerms() },
-                onDismiss = { showTerms = false }
+            // Full page, not a dialog: a dialog cannot scroll reliably, and these terms
+            // are the thing a student is agreeing to.
+            LegalScreen(
+                kind = LegalKind.Terms,
+                onBack = { showTerms = false },
+                onAccept = { viewModel.acceptTerms() }
             )
         }
     }

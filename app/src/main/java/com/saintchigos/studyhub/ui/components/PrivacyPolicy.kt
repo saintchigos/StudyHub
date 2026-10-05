@@ -1,29 +1,11 @@
 package com.saintchigos.studyhub.ui.components
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PrivacyTip
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-
-private val SECTIONS = listOf(
+/**
+ * What StudyHub collects, written for students rather than lawyers.
+ *
+ * Kept as plain data so the full page and any future export read from one source.
+ */
+val PRIVACY_SECTIONS = listOf(
     "What stays on your phone" to listOf(
         "Your courses, class times, assignments, exams and any programme you add " +
             "yourself are stored in a database on this device only.",
@@ -41,7 +23,15 @@ private val SECTIONS = listOf(
             "your display name and your messages.",
         "You can block anyone. A blocked student disappears from your class list and " +
             "can no longer message you.",
-        "You can report a student to us through Settings if they misbehave."
+        "You can report a student to us through the community screen if they " +
+            "misbehave."
+    ),
+    "Right now, everything is on your phone" to listOf(
+        "Accounts and community messages are currently stored on this device only. " +
+            "There is no community server yet, so nobody on another phone can see " +
+            "your account or your messages.",
+        "This will change when cloud sync is switched on. Until then, uninstalling " +
+            "the app removes your account and community data with it."
     ),
     "Permissions" to listOf(
         "Notifications and exact alarms are used only to warn you before class. You " +
@@ -53,58 +43,8 @@ private val SECTIONS = listOf(
             "exam from this device immediately.",
         "Deleting your account removes your community profile, messages and " +
             "connections."
+    ),
+    "Contact" to listOf(
+        "Questions about your data? Ask us on WhatsApp: +266 6284 8760"
     )
 )
-
-/**
- * Privacy policy, kept separate from the terms so a student can read exactly what is
- * collected about them without wading through legal wording.
- */
-@Composable
-fun PrivacyPolicyDialog(onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Filled.PrivacyTip,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(Modifier.size(8.dp))
-                Text("Privacy")
-            }
-        },
-        text = {
-            Column(
-                modifier = Modifier
-                    .verticalScroll(rememberScrollState())
-                    .heightIn(max = 380.dp)
-            ) {
-                SECTIONS.forEach { (heading, paragraphs) ->
-                    Text(
-                        text = heading,
-                        style = MaterialTheme.typography.titleSmall,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                    paragraphs.forEach { paragraph ->
-                        Text(
-                            text = paragraph,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                    }
-                }
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = "Questions? Ask us on WhatsApp: +266 6284 8760",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                PoweredBy()
-            }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } }
-    )
-}

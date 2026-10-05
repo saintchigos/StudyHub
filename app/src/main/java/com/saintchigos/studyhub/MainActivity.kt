@@ -57,6 +57,8 @@ import com.saintchigos.studyhub.ui.screens.CommunityScreen
 import com.saintchigos.studyhub.ui.screens.CoursesScreen
 import com.saintchigos.studyhub.ui.screens.DashboardScreen
 import com.saintchigos.studyhub.ui.screens.ExamsScreen
+import com.saintchigos.studyhub.ui.screens.LegalKind
+import com.saintchigos.studyhub.ui.screens.LegalScreen
 import com.saintchigos.studyhub.ui.screens.OnboardingScreen
 import com.saintchigos.studyhub.ui.screens.SettingsScreen
 import com.saintchigos.studyhub.ui.screens.TimetableScreen
@@ -107,6 +109,8 @@ private enum class Destination(val route: String, val label: String, val icon: I
  */
 private const val ROUTE_COMMUNITY = "community"
 private const val ROUTE_ACCOUNT = "account"
+private const val ROUTE_TERMS = "legal/terms"
+private const val ROUTE_PRIVACY = "legal/privacy"
 
 @Composable
 fun StudyHubApp(viewModel: StudyHubViewModel = viewModel()) {
@@ -196,16 +200,29 @@ private fun AppRoot(viewModel: StudyHubViewModel) {
                 navController = navController,
                 startDestination = Destination.Dashboard.route
             ) {
-                composable(Destination.Dashboard.route) { DashboardScreen(viewModel) }
                 composable(Destination.Timetable.route) { TimetableScreen(viewModel) }
                 composable(Destination.Assignments.route) { AssignmentsScreen(viewModel) }
                 composable(Destination.Exams.route) { ExamsScreen(viewModel) }
                 composable(Destination.Courses.route) { CoursesScreen(viewModel) }
+                composable(Destination.Dashboard.route) {
+                    DashboardScreen(
+                        viewModel = viewModel,
+                        communityViewModel = communityViewModel,
+                        onOpenAccount = { navController.navigate(ROUTE_ACCOUNT) },
+                        onOpenCommunity = { navController.navigate(ROUTE_COMMUNITY) }
+                    )
+                }
                 composable(Destination.Settings.route) {
                     SettingsScreen(
                         viewModel = viewModel,
+                        communityViewModel = communityViewModel,
                         onOpenCommunity = { navController.navigate(ROUTE_COMMUNITY) },
-                        onOpenAccount = { navController.navigate(ROUTE_ACCOUNT) }
+                        onOpenAccount = { navController.navigate(ROUTE_ACCOUNT) },
+                        onOpenLegal = { kind ->
+                            navController.navigate(
+                                if (kind == LegalKind.Terms) ROUTE_TERMS else ROUTE_PRIVACY
+                            )
+                        }
                     )
                 }
                 composable(ROUTE_COMMUNITY) {
@@ -218,6 +235,15 @@ private fun AppRoot(viewModel: StudyHubViewModel) {
                 composable(ROUTE_ACCOUNT) {
                     AccountScreen(
                         viewModel = communityViewModel,
+                        onBack = { navController.popBackStack() }
+                    )
+                }
+                composable(ROUTE_TERMS) {
+                    LegalScreen(kind = LegalKind.Terms, onBack = { navController.popBackStack() })
+                }
+                composable(ROUTE_PRIVACY) {
+                    LegalScreen(
+                        kind = LegalKind.Privacy,
                         onBack = { navController.popBackStack() }
                     )
                 }
