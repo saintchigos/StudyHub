@@ -37,7 +37,46 @@ object DailyAlarms {
     const val EXTRA_LABEL = "label"
     const val EXTRA_VIBRATE = "vibrate"
     const val EXTRA_SOUND = "sound"
+    internal const val EXTRA_SNOOZED = "snoozed"
+    const val SNOOZE_MINUTES = 9
+
     private const val ACTION = "com.saintchigos.studyhub.DAILY_ALARM"
+    const val ACTION_SNOOZE = "com.saintchigos.studyhub.DAILY_ALARM_SNOOZE"
+    const val ACTION_DISMISS = "com.saintchigos.studyhub.DAILY_ALARM_DISMISS"
+
+    private const val SNOOZE_REQUEST = 0x50
+    private const val DISMISS_REQUEST = 0x51
+
+    /** Shows the alarm again in [SNOOZE_MINUTES] minutes without touching its schedule. */
+    fun snooze(context: Context, alarmId: Long, label: String, vibrate: Boolean, sound: Boolean) {
+        val am = context.getSystemService(AlarmManager::class.java) ?: return
+        val intent = Intent(context, DailyAlarmReceiver::class.java).apply {
+            action = ACTION
+            putExtra(EXTRA_ALARM_ID, alarmId)
+            putExtra(EXTRA_LABEL, label)
+            putExtra(EXTRA_VIBRATE, vibrate)
+            putExtra(EXTRA_SOUND, sound)
+            // Marks this as a snooze so the receiver re-arms by snooze delay rather
+            // than by the next weekday, which would skip today's alarm entirely.
+            putExtra(EXTRA_SNOOZED, true)
+        }
+        val pi = PendingIntent.getBroadcast(
+            context,
+            alarmId.hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val triggerAt = System.currentTimeMillis() + SNOOZE_MINUTES * 60_000L
+        if (canScheduleExact(context)) {
+            am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi)
+        } else {
+            am.set(AlarmManager.RTC_WAKEUP, triggerAt, pi)
+        }
+    }
+
+    fun dismiss(context: Context, alarmId: Long) {
+        NotificationManagerCompat.from(context).cancel(alarmId.hashCode())
+    }
 
     /** Reads one alarm back out of Room, so a fired alarm can re-arm itself. */
     suspend fun load(context: Context, id: Long): DailyAlarm? =
@@ -94,8 +133,16 @@ object DailyAlarms {
         )
     }
 
-    /** Next time this alarm should ring, as a wall-clock instant in millis. */
-    fun nextTriggerAt(alarm: DailyAlarm, now: Long = System.currentTimeMillis()): Long {
+    /**
+     * Next time this alarm should ring, as a wall-clock instant in millis.
+     *
+     * Returns null when the alarm has no days ticked. Such an alarm can never
+     * fire, so callers must not schedule it instead of quietly landing on some
+     * arbitrary day a week out.
+     */
+    fun nextTriggerAt(alarm: DailyAlarm, now: Long = System.currentTimeMillis()): Long? {
+        if (alarm.daysMask == 0) return null
+
         val calendar = Calendar.getInstance().apply { timeInMillis = now }
         calendar.set(Calendar.HOUR_OF_DAY, alarm.minuteOfDay / 60)
         calendar.set(Calendar.MINUTE, alarm.minuteOfDay % 60)
@@ -105,13 +152,23 @@ object DailyAlarms {
 
         // Walk forward at most a week looking for a day this alarm is set on.
         var attempts = 0
-        while (!DailyAlarm.hasDay(alarm.daysMask, calendar.get(Calendar.DAY_OF_WEEK)) &&
-            attempts < 7
-        ) {
+        while (!DailyAlarm.hasDay(alarm.daysMask, isoDayOfWeek(calendar)) && attempts < 7) {
             calendar.add(Calendar.DAY_OF_YEAR, 1)
             attempts++
         }
         return calendar.timeInMillis
+    }
+
+    /**
+     * Converts Calendar's day number to the one stored in [DailyAlarm.daysMask].
+     *
+     * Calendar counts Sunday as 1 and Saturday as 7, but the mask treats bit 0 as
+     * Monday. Passing Calendar's number straight through shifts every alarm by a
+     * day, so a weekday alarm rings Sunday to Thursday and never on Friday.
+     */
+    private fun isoDayOfWeek(calendar: Calendar): Int {
+        val calendarDay = calendar.get(Calendar.DAY_OF_WEEK)
+        return if (calendarDay == Calendar.SUNDAY) 7 else calendarDay - 1
     }
 
     fun schedule(context: Context, alarm: DailyAlarm) {
@@ -120,8 +177,10 @@ object DailyAlarms {
         cancel(context, alarm.id)
         if (!alarm.enabled) return
 
+        // No days ticked means the alarm can never ring, so nothing is scheduled.
+        val triggerAt = nextTriggerAt(alarm) ?: return
+
         val pi = pendingIntent(context, alarm)
-        val triggerAt = nextTriggerAt(alarm)
         if (canScheduleExact(context)) {
             am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi)
         } else {
@@ -173,14 +232,19 @@ object DailyAlarms {
         prefs.edit().putStringSet(KEYS, oldKeys).apply()
     }
 
+    /**
+     * Clears only this feature's alarms.
+     *
+     * Deliberately does not call `am.cancelAll()`, which would also wipe the class
+     * reminders sharing the same AlarmManager. Every alarm here is tracked by id,
+     * so cancelling them one by one is both correct and complete.
+     */
     fun cancelAll(context: Context) {
-        val am = context.getSystemService(AlarmManager::class.java) ?: return
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         for (key in prefs.getStringSet(KEYS, emptySet()) ?: emptySet()) {
             cancel(context, key.toLongOrNull() ?: 0L)
         }
         prefs.edit().putStringSet(KEYS, emptySet()).apply()
-        am.cancelAll()
     }
 
     private fun trackKey(context: Context, key: String) {
@@ -214,17 +278,42 @@ object DailyAlarms {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val snooze = PendingIntent.getBroadcast(
+            context,
+            alarmId.hashCode() xor SNOOZE_REQUEST,
+            Intent(context, DailyAlarmReceiver::class.java).apply {
+                action = ACTION_SNOOZE
+                putExtra(EXTRA_ALARM_ID, alarmId)
+                putExtra(EXTRA_LABEL, label)
+                putExtra(EXTRA_VIBRATE, vibrate)
+                putExtra(EXTRA_SOUND, sound)
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val dismiss = PendingIntent.getBroadcast(
+            context,
+            alarmId.hashCode() xor DISMISS_REQUEST,
+            Intent(context, DailyAlarmReceiver::class.java).apply {
+                action = ACTION_DISMISS
+                putExtra(EXTRA_ALARM_ID, alarmId)
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         val body = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(label.ifBlank { "Wake-up alarm" })
-            .setContentText("Open StudyHub to start the day, or swipe to snooze.")
+            .setContentText("Open StudyHub to start the day.")
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setAutoCancel(true)
+            .setOnlyAlertOnce(true)
             .setContentIntent(open)
             .setDefaults(0)
-            .setTimeoutAfter(60_000L)
+            .addAction(R.drawable.ic_notification, "Snooze $SNOOZE_MINUTES min", snooze)
+            .addAction(R.drawable.ic_notification, "Dismiss", dismiss)
 
         // Sound and vibration come from the channel, so no per-post overrides here.
         // Overriding them again would drop the alarm stream volume boost.

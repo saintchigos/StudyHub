@@ -301,6 +301,27 @@ interface StudyHubDao {
     @Query("SELECT COALESCE(SUM(actualMinutes), 0) FROM focus_sessions WHERE deleted = 0")
     fun observeFocusMinutesTotal(): Flow<Int>
 
+    /**
+     * Totals for a single day, for the daily goal.
+     *
+     * Ranges on the epoch instead of grouping by a stored day string, so the
+     * query stays index-friendly and never depends on the phone's locale.
+     */
+    @Query(
+        """
+        SELECT COALESCE(SUM(actualMinutes), 0) FROM focus_sessions
+        WHERE deleted = 0 AND startedAt >= :since AND startedAt < :until
+        """
+    )
+    fun observeFocusMinutesBetween(since: Long, until: Long): Flow<Int>
+
+    /** Clears the whole log, not just the page the screen happens to have loaded. */
+    @Query("UPDATE focus_sessions SET deleted = 1 WHERE deleted = 0")
+    suspend fun softDeleteAllFocusSessions()
+
+    @Query("SELECT COUNT(*) FROM focus_sessions WHERE deleted = 0")
+    fun observeFocusSessionCount(): Flow<Int>
+
     // Daily wake-up alarms.
 
     @Insert
