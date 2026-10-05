@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Settings
@@ -47,9 +48,12 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.saintchigos.studyhub.reminder.ClassAlarms
 import com.saintchigos.studyhub.reminder.ReminderRules
+import com.saintchigos.studyhub.ui.CommunityViewModel
 import com.saintchigos.studyhub.ui.StudyHubViewModel
 import com.saintchigos.studyhub.ui.components.ClassAlertBanner
+import com.saintchigos.studyhub.ui.screens.AccountScreen
 import com.saintchigos.studyhub.ui.screens.AssignmentsScreen
+import com.saintchigos.studyhub.ui.screens.CommunityScreen
 import com.saintchigos.studyhub.ui.screens.CoursesScreen
 import com.saintchigos.studyhub.ui.screens.DashboardScreen
 import com.saintchigos.studyhub.ui.screens.ExamsScreen
@@ -97,6 +101,13 @@ private enum class Destination(val route: String, val label: String, val icon: I
     Settings("settings", "Settings", Icons.Filled.Settings)
 }
 
+/**
+ * Reachable from Home and Settings rather than the bottom bar: seven tabs crowd a
+ * low-end phone and squeeze the touch targets below 48dp.
+ */
+private const val ROUTE_COMMUNITY = "community"
+private const val ROUTE_ACCOUNT = "account"
+
 @Composable
 fun StudyHubApp(viewModel: StudyHubViewModel = viewModel()) {
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
@@ -115,6 +126,7 @@ fun StudyHubApp(viewModel: StudyHubViewModel = viewModel()) {
 
 @Composable
 private fun AppRoot(viewModel: StudyHubViewModel) {
+    val communityViewModel: CommunityViewModel = viewModel()
     val setupComplete by viewModel.setupComplete.collectAsStateWithLifecycle()
 
     // First run shows the programme picker; students who already have a timetable
@@ -189,7 +201,26 @@ private fun AppRoot(viewModel: StudyHubViewModel) {
                 composable(Destination.Assignments.route) { AssignmentsScreen(viewModel) }
                 composable(Destination.Exams.route) { ExamsScreen(viewModel) }
                 composable(Destination.Courses.route) { CoursesScreen(viewModel) }
-composable(Destination.Settings.route) { SettingsScreen(viewModel) }
+                composable(Destination.Settings.route) {
+                    SettingsScreen(
+                        viewModel = viewModel,
+                        onOpenCommunity = { navController.navigate(ROUTE_COMMUNITY) },
+                        onOpenAccount = { navController.navigate(ROUTE_ACCOUNT) }
+                    )
+                }
+                composable(ROUTE_COMMUNITY) {
+                    CommunityScreen(
+                        viewModel = communityViewModel,
+                        onBack = { navController.popBackStack() },
+                        onOpenAccount = { navController.navigate(ROUTE_ACCOUNT) }
+                    )
+                }
+                composable(ROUTE_ACCOUNT) {
+                    AccountScreen(
+                        viewModel = communityViewModel,
+                        onBack = { navController.popBackStack() }
+                    )
+                }
             }
         }
     }

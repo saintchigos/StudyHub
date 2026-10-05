@@ -9,9 +9,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
 import com.saintchigos.studyhub.ui.components.ScreenHeader
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -36,6 +40,7 @@ import com.saintchigos.studyhub.ui.components.AppSettingsSection
 import com.saintchigos.studyhub.ui.components.HowItWorks
 import com.saintchigos.studyhub.ui.components.NotificationSettings
 import com.saintchigos.studyhub.ui.components.PoweredBy
+import com.saintchigos.studyhub.ui.components.PrivacyPolicyDialog
 import com.saintchigos.studyhub.ui.components.ProgrammePlanCard
 import com.saintchigos.studyhub.ui.components.SectionHeader
 import com.saintchigos.studyhub.ui.components.SupportButton
@@ -48,7 +53,11 @@ import com.saintchigos.studyhub.ui.components.planLabel
  * their data. Nothing here deletes anything without an explicit confirmation.
  */
 @Composable
-fun SettingsScreen(viewModel: StudyHubViewModel) {
+fun SettingsScreen(
+    viewModel: StudyHubViewModel,
+    onOpenCommunity: () -> Unit = {},
+    onOpenAccount: () -> Unit = {}
+) {
     val plans by viewModel.plans.collectAsStateWithLifecycle()
     val stats by viewModel.planStats.collectAsStateWithLifecycle()
     val courses by viewModel.courses.collectAsStateWithLifecycle()
@@ -58,6 +67,7 @@ fun SettingsScreen(viewModel: StudyHubViewModel) {
     var addingCourseFor by remember { mutableStateOf<PlanWithProgramme?>(null) }
     var endingSemesterFor by remember { mutableStateOf<PlanWithProgramme?>(null) }
     var showTerms by remember { mutableStateOf(false) }
+    var showPrivacy by remember { mutableStateOf(false) }
     var confirmDeleteAll by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
@@ -194,13 +204,33 @@ fun SettingsScreen(viewModel: StudyHubViewModel) {
                 }
             }
 
+            // ---- account and community ---------------------------------------
+            item {
+                Column {
+                    SectionHeader("Your account and community")
+                    Text(
+                        text = "Create a password to join the community for your programme " +
+                            "and year. Find classmates, chat about the semester and ask for " +
+                            "help. Your timetable works without an account.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        TextButton(onClick = onOpenAccount) { Text("Sign in or create account") }
+                        TextButton(onClick = onOpenCommunity) { Text("Open community") }
+                    }
+                }
+            }
+
             // ---- terms and conditions ---------------------------------------
             item {
                 Column {
                     SectionHeader("Terms and conditions")
                     Text(
-                        text = "StudyHub stores everything on your device only. There is no " +
-                            "account server and nothing is uploaded.",
+                        text = "Your timetable is stored on your device. If you create an " +
+                            "account, only your username, display name and programme are kept " +
+                            "for the community.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -211,7 +241,7 @@ fun SettingsScreen(viewModel: StudyHubViewModel) {
                         TextButton(onClick = { showTerms = true }) {
                             Text("Read full terms and conditions")
                         }
-                        TextButton(onClick = { showTerms = true }) { Text("Privacy") }
+                        TextButton(onClick = { showPrivacy = true }) { Text("Privacy") }
                     }
                     Text(
                         text = if (termsAccepted) "You accepted the terms on this device."
@@ -320,6 +350,10 @@ fun SettingsScreen(viewModel: StudyHubViewModel) {
             )
         }
 
+        if (showPrivacy) {
+            PrivacyPolicyDialog(onDismiss = { showPrivacy = false })
+        }
+
         if (confirmDeleteAll) {
             AlertDialog(
                 onDismissRequest = { confirmDeleteAll = false },
@@ -350,20 +384,25 @@ private fun TermsSummary() {
     val points = listOf(
         "Your timetable, courses, assignments and exams belong to you.",
         "Everything stays on this device. Nothing is uploaded.",
+        "An account is optional. You only need one for the community.",
+        "Your password is stored as a salted hash, never as plain text.",
+        "You can block or report anyone in the community.",
         "Reminders need notification and alarm permission to arrive on time.",
         "Timetable templates are a starting point. Confirm your real schedule " +
             "with your department.",
         "The app is provided as is, without warranty."
     )
     points.forEach { point ->
-        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
-            Text(
-                text = "ÔÇó",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            Icon(
+                imageVector = Icons.Filled.CheckCircle,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(14.dp).padding(top = 2.dp)
             )
-            Spacer(Modifier.height(0.dp))
             Text(
                 text = point,
                 style = MaterialTheme.typography.bodySmall,

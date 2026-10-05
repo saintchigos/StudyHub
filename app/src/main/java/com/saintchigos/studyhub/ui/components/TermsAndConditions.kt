@@ -33,13 +33,32 @@ private val SECTIONS = listOf(
         "StudyHub is a student dashboard built by Chigos Media. It keeps your weekly " +
             "timetable, courses, assignments and exams in one place, and warns you before " +
             "class so you are never late because you forgot.",
-        "All of your data is stored only on this device. StudyHub has no account server " +
-            "and does not upload your timetable, courses or personal information to anyone."
+        "You can use every part of StudyHub without an account. Creating one is only " +
+            "needed if you want the community features: finding classmates, chatting " +
+            "about your semester and asking for help.",
+        "Your timetable, courses, assignments and exams stay on your device. StudyHub " +
+            "does not upload them anywhere."
+    ),
+    "Your account" to listOf(
+        "An account needs a username, a display name other students see, and a " +
+            "password you choose.",
+        "Your password is never stored as plain text. StudyHub keeps only a salted hash " +
+            "of it, so it cannot be read back out of the app.",
+        "An account lets other students in your programme and year see your display " +
+            "name and message you in the community. You can block anyone at any time."
     ),
     "Your data" to listOf(
         "Courses, class times, assignments and exams belong to you. You can edit or " +
             "delete any of them at any time, including deleting everything from Setup.",
-        "Programmes you add yourself stay on the device so you can reuse them later."
+        "Programmes you add yourself stay on the device so you can reuse them later.",
+        "Delete all my data in Settings removes your timetable immediately. Deleting " +
+            "your account removes your community profile, messages and connections."
+    ),
+    "Community conduct" to listOf(
+        "Post what is useful to other students. Do not post anyone's personal " +
+            "information, and do not use the community to harass or cheat.",
+        "You can report a student from the community screen and we will review it. " +
+            "Serious abuse gets an account removed."
     ),
     "Reminders and notifications" to listOf(
         "Class reminders use your device's alarm system so they can arrive on time even " +
@@ -54,10 +73,12 @@ private val SECTIONS = listOf(
             "out-of-date information."
     ),
     "Acceptable use" to listOf(
-        "Use StudyHub for your own study organisation. Do not attempt to disrupt the app " +
-            "for other users or misuse the support contact.",
-        "The app is provided as is, without warranty. We may update or change features as " +
-            "the app improves."
+        "Use StudyHub for your own study organisation and for treating other students " +
+            "decently in the community. Do not attempt to disrupt the app for other " +
+            "users or misuse the support contact.",
+        "The app is provided as is, without warranty. We may update or change features " +
+            "as the app improves.",
+        "Chigos Media can remove an account that breaks these terms."
     )
 )
 

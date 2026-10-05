@@ -9,6 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 @Database(
     entities = [
@@ -30,8 +31,8 @@ import kotlinx.coroutines.launch
         Report::class,
         Message::class
     ],
-    version = 4,
-    exportSchema = false
+    version = 5,
+    exportSchema = true
 )
 abstract class StudyHubDatabase : RoomDatabase() {
     abstract fun dao(): StudyHubDao
@@ -48,9 +49,63 @@ abstract class StudyHubDatabase : RoomDatabase() {
                     StudyHubDatabase::class.java,
                     "studyhub.db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .build()
                     .also { instance = it }
+            }
+        }
+
+        /**
+         * Adds the sync metadata columns to the student's own timetable data.
+         *
+         * New rows get a fresh `syncId` and `deleted = 0` from the entity
+         * defaults, so cloud sync can match rows across devices and treat a deletion
+         * as a tombstone instead of losing the row entirely.
+         *
+         * Existing rows cannot be given a per-row default from `ALTER TABLE`, so they
+         * are backfilled here: a shared default would leave every pre-existing row with
+         * an empty syncId and collide on the unique index. Timetable, assignment and
+         * exam content is never modified, only annotated.
+         */
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                for (table in SYNCED_TABLES) {
+                    db.execSQL(
+                        "ALTER TABLE `$table` ADD COLUMN `syncId` TEXT NOT NULL DEFAULT ''"
+                    )
+                    db.execSQL(
+                        "ALTER TABLE `$table` ADD COLUMN `updatedAt` INTEGER NOT NULL DEFAULT 0"
+                    )
+                    db.execSQL(
+                        "ALTER TABLE `$table` ADD COLUMN `deleted` INTEGER NOT NULL DEFAULT 0"
+                    )
+                    backfillSyncFields(db, table)
+                    db.execSQL(
+                        "CREATE UNIQUE INDEX IF NOT EXISTS `index_${table}_syncId` " +
+                            "ON `$table` (`syncId`)"
+                    )
+                }
+            }
+        }
+
+        /** Timetable tables that belong to the student and therefore sync. */
+        private val SYNCED_TABLES = listOf("courses", "class_sessions", "assignments", "exams")
+
+        /**
+         * Gives each existing row its own syncId and a shared upgrade timestamp, so no
+         * row is left blank and two rows can never share a sync identity.
+         */
+        private fun backfillSyncFields(db: SupportSQLiteDatabase, table: String) {
+            val upgradedAt = System.currentTimeMillis()
+            val ids = mutableListOf<Long>()
+            db.query("SELECT `id` FROM `$table`").use { cursor ->
+                while (cursor.moveToNext()) ids.add(cursor.getLong(0))
+            }
+            for (id in ids) {
+                db.execSQL(
+                    "UPDATE `$table` SET `syncId` = ?, `updatedAt` = ? WHERE `id` = ?",
+                    arrayOf<Any>(UUID.randomUUID().toString(), upgradedAt, id)
+                )
             }
         }
 
