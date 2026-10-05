@@ -9,91 +9,122 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Alarm
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.EditCalendar
+import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
-private data class Step(val title: String, val detail: String)
+private data class Feature(
+    val icon: ImageVector,
+    val title: String,
+    val detail: String
+)
 
-private val STEPS = listOf(
-    Step(
-        "1. Pick your programme",
-        "Choose your major, year and semester. StudyHub fills in your courses and " +
-            "timetable for you, so you never have to type a whole week out."
+private val FEATURES = listOf(
+    Feature(
+        Icons.Filled.School,
+        "Timetable from your programme",
+        "Choose your major, year and semester and StudyHub fills in your courses and " +
+            "class times. Tap any class to move it, rename it or change the room."
     ),
-    Step(
-        "2. Get reminded before class",
-        "We alert you 10 minutes before the first class of your day, and 5 minutes " +
-            "before every other class. You get a full screen alert with sound and vibration."
+    Feature(
+        Icons.Filled.NotificationsActive,
+        "Alerts before every class",
+        "10 minutes before your first class of the day, 5 minutes before the rest. " +
+            "Loud enough to hear in a bag, and the lead time is yours to change."
     ),
-    Step(
-        "3. Keep track of your work",
-        "Add assignments and exams to each course. Upcoming deadlines and exams show " +
-            "on your home screen so nothing slips."
+    Feature(
+        Icons.Filled.Timer,
+        "Focus timer that keeps going",
+        "Pick 15, 25, 45 or 60 minutes, start it and put the phone down. You get a " +
+            "notification when the block ends and the time is added to your study log."
     ),
-    Step(
-        "4. Edit anything, any time",
-        "Tap a class in your timetable to change its day, time or room. Add or remove " +
-            "classes and courses whenever your schedule changes."
+    Feature(
+        Icons.Filled.Alarm,
+        "Wake-up alarms that ring in silent mode",
+        "For a lab session, an early class or a library slot. Each alarm picks the " +
+            "days it repeats and re-arms itself, even after a restart."
     ),
-    Step(
-        "5. Semesters and support",
-        "When your semester ends, tell us in Settings and load your next one. Need help? " +
-            "Message Chigos Media on WhatsApp any time."
+    Feature(
+        Icons.Filled.CheckCircle,
+        "Tasks and exams in one list",
+        "Assignments and exams sit on your Home screen with what is due next and " +
+            "what is overdue. Ticking one off also counts as study time."
+    ),
+    Feature(
+        Icons.Filled.EditCalendar,
+        "Works offline, always",
+        "Everything is stored on this phone. No signal means no lost work, no blank " +
+            "screen and no waiting."
     )
 )
 
-/** Explains how StudyHub works, for new students and for staff. */
+/** Explains what the app does, for new students and for anyone reviewing it. */
 @Composable
 fun HowItWorks(modifier: Modifier = Modifier) {
     Column(modifier = modifier.fillMaxWidth()) {
-        Text("How StudyHub works", style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(8.dp))
-        STEPS.forEach { step ->
-            StepRow(step)
+        Text(
+            "How StudyHub works",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold
+        )
+        Text(
+            "Six things, and nothing else in the way",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.height(10.dp))
+        FEATURES.forEachIndexed { index, feature ->
+            FeatureRow(feature)
+            if (index < FEATURES.lastIndex) Spacer(Modifier.height(8.dp))
         }
     }
 }
 
 @Composable
-private fun StepRow(step: Step) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
-        verticalAlignment = Alignment.Top
+private fun FeatureRow(feature: Feature) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
     ) {
-        Card(
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer
-            )
+        Row(
+            modifier = Modifier.padding(14.dp).fillMaxWidth(),
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.Start
         ) {
-            Text(
-                text = step.title.substringBefore(".").ifBlank { "1" },
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                fontWeight = FontWeight.Bold
+            Icon(
+                feature.icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(22.dp)
             )
-        }
-        Spacer(Modifier.size(10.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = step.title.substringAfter("."),
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.SemiBold
-            )
-            Text(
-                text = step.detail,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Spacer(Modifier.size(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(feature.title, style = MaterialTheme.typography.titleSmall)
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    feature.detail,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }

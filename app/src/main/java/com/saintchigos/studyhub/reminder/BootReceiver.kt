@@ -21,8 +21,11 @@ class BootReceiver : BroadcastReceiver() {
         val pending = goAsync()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
-                val sessions = StudyHubDatabase.get(appContext).dao().getAllSessions()
-                ClassAlarms.reschedule(appContext, sessions)
+                val dao = StudyHubDatabase.get(appContext).dao()
+                ClassAlarms.reschedule(appContext, dao.getAllSessions())
+                // Wake-up alarms die with the reboot too, so they are re-armed from
+                // Room rather than from any stored copy in AlarmManager.
+                DailyAlarms.rescheduleAll(appContext, dao.getEnabledAlarms())
             } catch (_: Exception) {
                 // Nothing useful to do from a receiver; the next app launch re-arms.
             } finally {

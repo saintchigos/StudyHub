@@ -19,12 +19,14 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -64,7 +66,8 @@ fun DashboardScreen(
     viewModel: StudyHubViewModel,
     communityViewModel: CommunityViewModel? = null,
     onOpenAccount: () -> Unit = {},
-    onOpenCommunity: () -> Unit = {}
+    onOpenCommunity: () -> Unit = {},
+    onOpenFocus: () -> Unit = {}
 ) {
     val courses by viewModel.courses.collectAsStateWithLifecycle()
     val assignments by viewModel.assignments.collectAsStateWithLifecycle()
@@ -95,6 +98,8 @@ fun DashboardScreen(
                 subtitle = "Your day at a glance"
             )
         }
+
+        item { QuickStartCard(onOpenFocus) }
 
         item { CommunityCard(communityViewModel, onOpenAccount, onOpenCommunity) }
 
@@ -472,6 +477,48 @@ private fun StudyTipCard(tip: String, onDismiss: () -> Unit) {
  * Home page entry point to the community. Without an account it invites the student
  * in; with one it shows who they are and how many classmates are in their year.
  */
+/** One tap into the focus timer, which is the thing a student wants at 8am. */
+@Composable
+private fun QuickStartCard(onOpenFocus: () -> Unit) {
+    Card(
+        onClick = onOpenFocus,
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Filled.Timer,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+            Spacer(Modifier.size(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "Start a focus block",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+                Text(
+                    "25 minutes, then logged to your study time",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
+            Icon(
+                Icons.Filled.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+        }
+    }
+}
+
 @Composable
 private fun CommunityCard(
     communityViewModel: CommunityViewModel?,

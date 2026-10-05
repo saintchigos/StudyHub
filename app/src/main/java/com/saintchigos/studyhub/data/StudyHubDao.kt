@@ -270,4 +270,54 @@ interface StudyHubDao {
     suspend fun getPlanSessionsForCourse(planCourseId: Long): List<PlanSession>
     @Query("SELECT * FROM programmes WHERE id = :id")
     suspend fun getProgramme(id: Long): Programme?
+
+    // Focus timer and study log.
+
+    @Insert
+    suspend fun insertFocusSession(session: FocusSession): Long
+
+    @Update
+    suspend fun updateFocusSession(session: FocusSession)
+
+    @Query("DELETE FROM focus_sessions WHERE id = :id")
+    suspend fun deleteFocusSession(id: Long)
+
+    @Query("SELECT * FROM focus_sessions WHERE deleted = 0 ORDER BY startedAt DESC LIMIT :limit")
+    fun observeRecentFocusSessions(limit: Int): Flow<List<FocusSession>>
+
+    @Query(
+        """
+        SELECT COALESCE(NULLIF(courseCode, ''), label) AS label,
+               COUNT(*) AS sessions,
+               SUM(actualMinutes) AS minutes
+        FROM focus_sessions
+        WHERE deleted = 0
+        GROUP BY COALESCE(NULLIF(courseCode, ''), label)
+        ORDER BY minutes DESC
+        """
+    )
+    fun observeFocusTotals(): Flow<List<FocusTotal>>
+
+    @Query("SELECT COALESCE(SUM(actualMinutes), 0) FROM focus_sessions WHERE deleted = 0")
+    fun observeFocusMinutesTotal(): Flow<Int>
+
+    // Daily wake-up alarms.
+
+    @Insert
+    suspend fun insertAlarm(alarm: DailyAlarm): Long
+
+    @Update
+    suspend fun updateAlarm(alarm: DailyAlarm)
+
+    @Query("DELETE FROM daily_alarms WHERE id = :id")
+    suspend fun deleteAlarm(id: Long)
+
+    @Query("SELECT * FROM daily_alarms WHERE id = :id")
+    suspend fun getAlarm(id: Long): DailyAlarm?
+
+    @Query("SELECT * FROM daily_alarms ORDER BY minuteOfDay")
+    fun observeAlarms(): Flow<List<DailyAlarm>>
+
+    @Query("SELECT * FROM daily_alarms WHERE enabled = 1 ORDER BY minuteOfDay")
+    suspend fun getEnabledAlarms(): List<DailyAlarm>
 }

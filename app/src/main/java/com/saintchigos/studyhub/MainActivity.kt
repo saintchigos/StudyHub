@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Grade
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material.icons.filled.SpaceDashboard
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -49,6 +50,7 @@ import androidx.navigation.compose.rememberNavController
 import com.saintchigos.studyhub.reminder.ClassAlarms
 import com.saintchigos.studyhub.reminder.ReminderRules
 import com.saintchigos.studyhub.ui.CommunityViewModel
+import com.saintchigos.studyhub.ui.FocusViewModel
 import com.saintchigos.studyhub.ui.StudyHubViewModel
 import com.saintchigos.studyhub.ui.components.ClassAlertBanner
 import com.saintchigos.studyhub.ui.screens.AccountScreen
@@ -57,6 +59,7 @@ import com.saintchigos.studyhub.ui.screens.CommunityScreen
 import com.saintchigos.studyhub.ui.screens.CoursesScreen
 import com.saintchigos.studyhub.ui.screens.DashboardScreen
 import com.saintchigos.studyhub.ui.screens.ExamsScreen
+import com.saintchigos.studyhub.ui.screens.FocusScreen
 import com.saintchigos.studyhub.ui.screens.LegalKind
 import com.saintchigos.studyhub.ui.screens.LegalScreen
 import com.saintchigos.studyhub.ui.screens.OnboardingScreen
@@ -103,6 +106,7 @@ private enum class Destination(val route: String, val label: String, val icon: I
     Timetable("timetable", "Classes", Icons.Filled.CalendarViewWeek),
     Assignments("assignments", "Tasks", Icons.Filled.Checklist),
     Exams("exams", "Exams", Icons.Filled.Quiz),
+    Focus("focus", "Focus", Icons.Filled.Timer),
     Courses("courses", "Courses", Icons.Filled.Grade),
     Settings("settings", "More", Icons.Filled.Tune)
 }
@@ -135,6 +139,7 @@ fun StudyHubApp(viewModel: StudyHubViewModel = viewModel()) {
 @Composable
 private fun AppRoot(viewModel: StudyHubViewModel) {
     val communityViewModel: CommunityViewModel = viewModel()
+    val focusViewModel: FocusViewModel = viewModel()
     val setupComplete by viewModel.setupComplete.collectAsStateWithLifecycle()
 
     // First run shows the programme picker; students who already have a timetable
@@ -208,12 +213,14 @@ private fun AppRoot(viewModel: StudyHubViewModel) {
                 composable(Destination.Assignments.route) { AssignmentsScreen(viewModel) }
                 composable(Destination.Exams.route) { ExamsScreen(viewModel) }
                 composable(Destination.Courses.route) { CoursesScreen(viewModel) }
+                composable(Destination.Focus.route) { FocusScreen(focusViewModel) }
                 composable(Destination.Dashboard.route) {
                     DashboardScreen(
                         viewModel = viewModel,
                         communityViewModel = communityViewModel,
                         onOpenAccount = { navController.navigate(ROUTE_ACCOUNT) },
-                        onOpenCommunity = { navController.navigate(ROUTE_COMMUNITY) }
+                        onOpenCommunity = { navController.navigate(ROUTE_COMMUNITY) },
+                        onOpenFocus = { navController.navigate(Destination.Focus.route) }
                     )
                 }
                 composable(Destination.Settings.route) {

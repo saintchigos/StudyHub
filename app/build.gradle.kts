@@ -47,6 +47,16 @@ android {
         }
     }
 
+    sourceSets {
+        // MigrationTestHelper loads the exported schema JSON from the app's assets,
+        // and Robolectric resolves that against the debug variant's assets. So the
+        // checked-in schemas are staged into a generated folder and added to debug
+        // only, which keeps them out of release while letting the tests run.
+        getByName("debug") {
+            assets.srcDir(layout.buildDirectory.dir("generated/schemaAssets"))
+        }
+    }
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -58,7 +68,22 @@ android {
 // and prove the migration preserves real student data.
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
+    arg("room.incremental", "true")
 }
+
+/**
+ * Stages the exported Room schemas where the debug variant's assets can pick them up.
+ * MigrationTestHelper needs 4.json and 5.json on disk to build the old database before
+ * migrating it, which is the only way to prove a migration keeps a student's real data.
+ */
+val stageSchemaAssets by tasks.registering(Copy::class) {
+    from("$projectDir/schemas")
+    into(layout.buildDirectory.dir("generated/schemaAssets"))
+}
+
+// Assets are merged before the schemas are staged unless the merge waits for it.
+tasks.matching { it.name.startsWith("merge") && it.name.endsWith("Assets") }
+    .configureEach { dependsOn(stageSchemaAssets) }
 
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2024.10.01")

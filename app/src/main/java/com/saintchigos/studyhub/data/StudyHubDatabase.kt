@@ -29,9 +29,11 @@ import java.util.UUID
         Connection::class,
         Block::class,
         Report::class,
-        Message::class
+        Message::class,
+        FocusSession::class,
+        DailyAlarm::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = true
 )
 abstract class StudyHubDatabase : RoomDatabase() {
@@ -49,9 +51,59 @@ abstract class StudyHubDatabase : RoomDatabase() {
                     StudyHubDatabase::class.java,
                     "studyhub.db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                    .addMigrations(
+                        MIGRATION_1_2,
+                        MIGRATION_2_3,
+                        MIGRATION_3_4,
+                        MIGRATION_4_5,
+                        MIGRATION_5_6
+                    )
                     .build()
                     .also { instance = it }
+            }
+        }
+
+        /**
+         * Adds the focus-timer study log and the student's own wake-up alarms.
+         *
+         * Both tables are new and empty, so nothing existing is read or rewritten. The
+         * timetable, assignments and exams are untouched, which matters because a
+         * destructive fallback here would wipe a student's work on upgrade.
+         */
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `focus_sessions` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`label` TEXT NOT NULL, " +
+                        "`courseCode` TEXT NOT NULL, " +
+                        "`plannedMinutes` INTEGER NOT NULL, " +
+                        "`actualMinutes` INTEGER NOT NULL, " +
+                        "`startedAt` INTEGER NOT NULL, " +
+                        "`finishedAt` INTEGER NOT NULL, " +
+                        "`completed` INTEGER NOT NULL, " +
+                        "`syncId` TEXT NOT NULL, " +
+                        "`updatedAt` INTEGER NOT NULL, " +
+                        "`deleted` INTEGER NOT NULL)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_focus_sessions_startedAt` " +
+                        "ON `focus_sessions` (`startedAt`)"
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_focus_sessions_syncId` " +
+                        "ON `focus_sessions` (`syncId`)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `daily_alarms` (" +
+                        "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                        "`label` TEXT NOT NULL, " +
+                        "`minuteOfDay` INTEGER NOT NULL, " +
+                        "`daysMask` INTEGER NOT NULL, " +
+                        "`enabled` INTEGER NOT NULL, " +
+                        "`vibrate` INTEGER NOT NULL, " +
+                        "`sound` INTEGER NOT NULL)"
+                )
             }
         }
 
