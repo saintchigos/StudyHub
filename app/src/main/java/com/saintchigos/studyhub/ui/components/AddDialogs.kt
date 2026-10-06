@@ -7,9 +7,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
@@ -23,13 +30,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.saintchigos.studyhub.data.ClassSession
 import com.saintchigos.studyhub.data.Course
+import com.saintchigos.studyhub.domain.ScheduleClash
 import com.saintchigos.studyhub.util.TimeUtil
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.ZoneId
 
 /**
  * Add-assignment dialog.
@@ -134,6 +145,7 @@ fun AddAssignmentDialog(
 @Composable
 fun AddExamDialog(
     courses: List<Course>,
+    sessions: List<ClassSession> = emptyList(),
     onDismiss: () -> Unit,
     onSave: (courseId: Long, title: String, startsAt: Long, durationMinutes: Int, room: String, notes: String) -> Unit
 ) {
@@ -146,6 +158,14 @@ fun AddExamDialog(
     var time by remember { mutableStateOf(LocalTime.of(9, 0)) }
 
     val canSave = title.isNotBlank() && courseId > 0
+
+    // Recomputed as the student types rather than once on open, so moving the date
+    // or the duration updates the warning immediately.
+    val clash = remember(date, time, duration, sessions) {
+        val startsAt = TimeUtil.toEpochMillis(LocalDateTime.of(date, time))
+        sessions.firstOrNull { ScheduleClash.examVsClass(startsAt, duration, it) }
+            ?.let { ScheduleClash.describe(it, startsAt, duration, ZoneId.systemDefault()) }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -207,6 +227,48 @@ fun AddExamDialog(
                     minLines = 2,
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                // A warning, not a block. Exams clash with lectures constantly, and
+                // sometimes the only answer really is to sit both. Stopping the
+                // student saving would just push them to write it down elsewhere.
+                if (clash != null) {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            Icon(
+                                Icons.Filled.Warning,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.size(8.dp))
+                            Column {
+                                Text(
+                                    "Clashes with a class",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                                Text(
+                                    clash.detail,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                                Text(
+                                    "You can still save it.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            }
+                        }
+                    }
+                }
             }
         },
         confirmButton = {

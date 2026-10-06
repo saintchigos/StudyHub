@@ -48,6 +48,7 @@ import com.saintchigos.studyhub.util.TimeUtil
 fun ExamsScreen(viewModel: StudyHubViewModel, openAddOnStart: Boolean = false) {
     val exams by viewModel.exams.collectAsStateWithLifecycle()
     val courses by viewModel.courses.collectAsStateWithLifecycle()
+    val allSessions by viewModel.allSessions.collectAsStateWithLifecycle()
     var showAdd by remember { mutableStateOf(openAddOnStart) }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -175,6 +176,7 @@ fun ExamsScreen(viewModel: StudyHubViewModel, openAddOnStart: Boolean = false) {
     if (showAdd) {
         AddExamDialog(
             courses = courses,
+            sessions = allSessions.map { it.toClassSession() },
             onDismiss = { showAdd = false },
             onSave = { courseId, title, startsAt, durationMinutes, room, notes ->
                 viewModel.addExam(courseId, title, startsAt, durationMinutes, room, notes)

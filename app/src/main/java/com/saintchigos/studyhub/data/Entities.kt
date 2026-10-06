@@ -95,7 +95,23 @@ data class SessionWithCourse(
     val startMinute: Int,
     val endMinute: Int,
     val room: String
-)
+) {
+    /**
+     * Rebuilds the timetable entry so clash checks can read a real [ClassSession].
+     *
+     * This projection exists to save a query, so it holds the slot fields but not a
+     * whole entity. Clash detection wants the entity, and copying it here keeps that
+     * knowledge in one place instead of at every call site.
+     */
+    fun toClassSession(): ClassSession = ClassSession(
+        id = sessionId,
+        courseId = courseId,
+        dayOfWeek = dayOfWeek,
+        startMinute = startMinute,
+        endMinute = endMinute,
+        room = room
+    )
+}
 
 data class AssignmentWithCourse(
     val id: Long,
