@@ -13,13 +13,17 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
@@ -35,6 +39,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -58,6 +64,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.saintchigos.studyhub.reminder.ClassAlarms
 import com.saintchigos.studyhub.reminder.ReminderRules
+import com.saintchigos.studyhub.ui.Adaptive
 import com.saintchigos.studyhub.ui.CommunityViewModel
 import com.saintchigos.studyhub.ui.FocusViewModel
 import com.saintchigos.studyhub.ui.StudyHubViewModel
@@ -227,6 +234,20 @@ private fun AppRoot(viewModel: StudyHubViewModel) {
     // One flag shared by the bar and the scroll connection below.
     var barHidden by remember { mutableStateOf(false) }
 
+    // A rail on a tablet, the bottom bar on a phone. Measured from the real window
+    // width rather than assumed from the device model, because the same app is on a
+    // 360dp phone and a tablet that is 601dp even held upright.
+    val widthDp = LocalConfiguration.current.screenWidthDp
+    val useRail = Adaptive.useRail(widthDp)
+
+    val goTo: (Destination) -> Unit = { destination ->
+        navController.navigate(destination.route) {
+            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
+
     Scaffold(
         bottomBar = {
             // Slides out of the way while reading a long list and comes back on the
@@ -236,40 +257,61 @@ private fun AppRoot(viewModel: StudyHubViewModel) {
             //
             // Translated rather than removed, so the Scaffold keeps reserving the
             // same inset and the content does not jump when it hides.
-            val density = LocalDensity.current
-            val hiddenPx = with(density) { 200.dp.toPx() }
+            //
+            // No rail on wide screens: it runs down the side and costs the content no
+            // height, so there is nothing to hide.
+            if (!useRail) {
+                val density = LocalDensity.current
+                val hiddenPx = with(density) { 200.dp.toPx() }
 
-            NavigationBar(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .graphicsLayer {
-                        translationY = if (barHidden) hiddenPx else 0f
+                NavigationBar(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .graphicsLayer {
+                            translationY = if (barHidden) hiddenPx else 0f
+                        }
+                ) {
+                    Destination.entries.forEach { destination ->
+                        val selected =
+                            currentDestination?.hierarchy?.any { it.route == destination.route } == true
+                        NavigationBarItem(
+                            selected = selected,
+                            onClick = { goTo(destination) },
+                            icon = {
+                                Icon(destination.icon, contentDescription = destination.label)
+                            },
+                            label = { Text(destination.label) }
+                        )
                     }
-            ) {
-                Destination.entries.forEach { destination ->
-                    val selected =
-                        currentDestination?.hierarchy?.any { it.route == destination.route } == true
-                    NavigationBarItem(
-                        selected = selected,
-                        onClick = {
-                            navController.navigate(destination.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
-                                }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = {
-                            Icon(destination.icon, contentDescription = destination.label)
-                        },
-                        label = { Text(destination.label) }
-                    )
                 }
             }
         }
     ) { innerPadding ->
-        Column(modifier = Modifier.padding(innerPadding)) {
+        Row(modifier = Modifier.padding(innerPadding)) {
+            if (useRail) {
+                // A rail sits in the padding, not floating over the content, so the
+                // list is measured from the rail's edge and never hides behind it.
+                NavigationRail {
+                    Destination.entries.forEach { destination ->
+                        val selected =
+                            currentDestination?.hierarchy?.any { it.route == destination.route } == true
+                        NavigationRailItem(
+                            selected = selected,
+                            onClick = { goTo(destination) },
+                            icon = { Icon(destination.icon, contentDescription = destination.label) },
+                            label = { Text(destination.label) }
+                        )
+                    }
+                }
+            }
+
+            Column(
+                modifier = Modifier.weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+            // Stops a single column of text running the full 1000dp of a landscape
+            // tablet, where a line becomes unreadable. The phone is never near this.
+            Column(modifier = Modifier.widthIn(max = Adaptive.MAX_CONTENT_DP.dp)) {
             ClassAlertBanner(
                 reminder = alert,
                 onDismiss = {
@@ -391,6 +433,8 @@ composable(ROUTE_ALARMS) { AlarmsScreen(focusViewModel) }
                         onBack = { navController.popBackStack() }
                     )
                 }
+            }
+            }
             }
         }
     }
