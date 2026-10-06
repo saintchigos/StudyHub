@@ -13,6 +13,8 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.saintchigos.studyhub.MainActivity
 import com.saintchigos.studyhub.R
+import com.saintchigos.studyhub.data.InboxLog
+import com.saintchigos.studyhub.data.NotificationLog
 import com.saintchigos.studyhub.data.SessionWithCourse
 import com.saintchigos.studyhub.util.StudyHubPrefs
 import com.saintchigos.studyhub.util.TimeUtil
@@ -168,8 +170,6 @@ object ClassAlarms {
         leadMinutes: Int
     ) {
         ensureChannel(context)
-        val manager = NotificationManagerCompat.from(context)
-        if (!manager.areNotificationsEnabled()) return
 
         val settings = StudyHubPrefs(context)
 
@@ -188,6 +188,15 @@ object ClassAlarms {
             append(whenLabel)
             if (leadMinutes > 0) append(" start")
         }
+
+        // Filed in the in-app inbox before the notification is even attempted, so a
+        // reminder still reaches the student when the system has notifications
+        // blocked, and when they swiped the shade entry away without reading it.
+        // The point of the inbox is catching the ones that never got through.
+        InboxLog.record(context, NotificationLog.KIND_CLASS, title, body)
+
+        val manager = NotificationManagerCompat.from(context)
+        if (!manager.areNotificationsEnabled()) return
 
         val open = PendingIntent.getActivity(
             context,
@@ -222,7 +231,7 @@ object ClassAlarms {
         try {
             manager.notify(courseCode.hashCode(), notification)
         } catch (_: SecurityException) {
-            // POST_NOTIFICATIONS not granted; the in-app banner still fires.
+            // POST_NOTIFICATIONS not granted; the in-app inbox already has it.
         }
     }
 

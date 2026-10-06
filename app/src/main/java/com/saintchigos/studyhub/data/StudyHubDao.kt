@@ -341,4 +341,35 @@ interface StudyHubDao {
 
     @Query("SELECT * FROM daily_alarms WHERE enabled = 1 ORDER BY minuteOfDay")
     suspend fun getEnabledAlarms(): List<DailyAlarm>
+
+    // In-app notification inbox behind the bell.
+
+    @Insert
+    suspend fun insertNotification(entry: NotificationLog): Long
+
+    /**
+     * Newest first, so the bell badge and the list it opens always agree.
+     *
+     * Limited rather than unbounded because this is a glance at recent reminders,
+     * not a permanent archive, and the phone has to keep working offline.
+     */
+    @Query("SELECT * FROM notification_log WHERE deleted = 0 ORDER BY createdAt DESC LIMIT :limit")
+    fun observeNotifications(limit: Int): Flow<List<NotificationLog>>
+
+    /** Drives the badge on the bell. Null `readAt` is what unread means. */
+    @Query("SELECT COUNT(*) FROM notification_log WHERE readAt IS NULL AND deleted = 0")
+    fun observeUnreadCount(): Flow<Int>
+
+    @Query("UPDATE notification_log SET readAt = :now WHERE readAt IS NULL AND deleted = 0")
+    suspend fun markAllNotificationsRead(now: Long = System.currentTimeMillis())
+
+    @Query("UPDATE notification_log SET readAt = :now WHERE id = :id")
+    suspend fun markNotificationRead(id: Long, now: Long = System.currentTimeMillis())
+
+    /** Newest first, used to trim the inbox back to a recent window. */
+    @Query("SELECT id FROM notification_log WHERE deleted = 0 ORDER BY createdAt DESC")
+    suspend fun notificationIdsNewestFirst(): List<Long>
+
+    @Query("DELETE FROM notification_log WHERE id = :id")
+    suspend fun deleteNotification(id: Long)
 }

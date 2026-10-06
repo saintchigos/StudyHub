@@ -113,6 +113,41 @@ data class SessionWithCourse(
     )
 }
 
+@Entity(
+    tableName = "notification_log",
+    indices = [Index("readAt")]
+)
+data class NotificationLog(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+
+    /** What it was about, so the inbox can group or filter later: class, exam, task. */
+    val kind: String,
+
+    val title: String,
+    val body: String,
+    val createdAt: Long,
+
+    /**
+     * When the student opened it, or null while it is still unread.
+     *
+     * Null rather than a boolean so "unread" has exactly one meaning and cannot
+     * drift out of step with the text it describes.
+     */
+    val readAt: Long? = null,
+
+    val syncId: String = UUID.randomUUID().toString(),
+    val updatedAt: Long = System.currentTimeMillis(),
+    val deleted: Int = 0
+) {
+    companion object {
+        const val KIND_CLASS = "class"
+        const val KIND_EXAM = "exam"
+        const val KIND_TASK = "task"
+    }
+
+    val isUnread: Boolean get() = readAt == null
+}
+
 data class AssignmentWithCourse(
     val id: Long,
     val title: String,

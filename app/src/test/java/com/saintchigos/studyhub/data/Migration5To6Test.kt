@@ -52,7 +52,8 @@ class Migration5To6Test {
             TEST_DB
         )
             .addMigrations(
-                StudyHubDatabase.MIGRATION_6_7,
+                                StudyHubDatabase.MIGRATION_7_8,
+StudyHubDatabase.MIGRATION_6_7,
                 StudyHubDatabase.MIGRATION_5_6,
                 StudyHubDatabase.MIGRATION_4_5
             )

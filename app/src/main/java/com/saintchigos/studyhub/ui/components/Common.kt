@@ -16,9 +16,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Inbox
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -205,6 +207,51 @@ fun ScreenHeader(
             }
         }
         if (trailing != null) trailing()
+    }
+}
+
+/**
+ * The bell, with a badge counting reminders the student has not opened yet.
+ *
+ * Shown only when something is actually unread. A permanent bell with a permanent
+ * zero trains people to stop looking at it, and on a phone with a small screen it
+ * is also one less thing competing with the date.
+ */
+@Composable
+fun NotificationBell(
+    unreadCount: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (unreadCount <= 0) return
+
+    Box(modifier = modifier) {
+        IconButton(onClick = onClick) {
+            Icon(
+                Icons.Filled.Notifications,
+                contentDescription = "Notifications, $unreadCount to read"
+            )
+        }
+        // Anchored to the top end of the button rather than centred, so the number
+        // sits on the corner of the bell the way every other app does it.
+        Surface(
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.error,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .size(18.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Text(
+                    // 99+ rather than a growing number: the exact total matters far
+                    // less than knowing there is something new to read.
+                    text = if (unreadCount > 99) "99+" else "$unreadCount",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onError,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
     }
 }
 

@@ -55,7 +55,8 @@ class Migration6To7Test {
             TEST_DB
         )
             .addMigrations(
-                StudyHubDatabase.MIGRATION_6_7,
+                                StudyHubDatabase.MIGRATION_7_8,
+StudyHubDatabase.MIGRATION_6_7,
                 StudyHubDatabase.MIGRATION_5_6
             )
             .allowMainThreadQueries()

@@ -45,6 +45,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -60,6 +61,8 @@ import com.saintchigos.studyhub.ui.StudyHubViewModel
 import com.saintchigos.studyhub.ui.components.CourseAvatar
 import com.saintchigos.studyhub.ui.components.CourseTag
 import com.saintchigos.studyhub.ui.components.EmptyState
+import com.saintchigos.studyhub.ui.components.NotificationBell
+import com.saintchigos.studyhub.ui.components.NotificationInbox
 import com.saintchigos.studyhub.ui.components.SectionHeader
 import com.saintchigos.studyhub.ui.components.StatCard
 import com.saintchigos.studyhub.ui.components.StreakBanner
@@ -101,6 +104,12 @@ fun DashboardScreen(
     val showStreak by viewModel.showStreakBanner.collectAsStateWithLifecycle()
     val showTips by viewModel.showStudyTips.collectAsStateWithLifecycle()
 
+    // The bell and the inbox it opens read the same two flows, so the badge count
+    // and the list can never disagree.
+    val unreadCount by viewModel.unreadNotificationCount.collectAsStateWithLifecycle()
+    val notifications by viewModel.notifications.collectAsStateWithLifecycle()
+    var showInbox by remember { mutableStateOf(false) }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
@@ -110,7 +119,13 @@ fun DashboardScreen(
             ScreenHeader(
                 title = TimeUtil.now()
                     .format(java.time.format.DateTimeFormatter.ofPattern("EEEE d MMMM")),
-                subtitle = "Your day at a glance"
+                subtitle = "Your day at a glance",
+                trailing = {
+                    NotificationBell(
+                        unreadCount = unreadCount,
+                        onClick = { showInbox = true }
+                    )
+                }
             )
         }
 
@@ -449,6 +464,14 @@ fun DashboardScreen(
                 }
             }
         }
+    }
+
+    if (showInbox) {
+        NotificationInbox(
+            entries = notifications,
+            onDismiss = { showInbox = false },
+            onOpened = viewModel::markNotificationsRead
+        )
     }
 }
 

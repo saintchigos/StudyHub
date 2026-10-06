@@ -10,6 +10,7 @@ import com.saintchigos.studyhub.data.ClassSession
 import com.saintchigos.studyhub.data.Course
 import com.saintchigos.studyhub.data.Exam
 import com.saintchigos.studyhub.data.ExamWithCourse
+import com.saintchigos.studyhub.data.NotificationLog
 import com.saintchigos.studyhub.data.PlanCourse
 import com.saintchigos.studyhub.data.PlanWithProgramme
 import com.saintchigos.studyhub.data.Programme
@@ -57,6 +58,23 @@ class StudyHubViewModel(app: Application) : AndroidViewModel(app) {
     /** Every weekly class, used to arm the reminder alarms. */
     val allSessions: StateFlow<List<SessionWithCourse>> = dao.observeAllSessions()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /**
+     * How many reminders the student has not opened yet.
+     *
+     * Feeds the badge on the bell. Counting here rather than in the screen means
+     * the badge is a plain query result, so it cannot drift out of step with the
+     * list it is meant to summarise.
+     */
+    val unreadNotificationCount: StateFlow<Int> = dao.observeUnreadCount()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    /** Recent reminders, newest first, for the inbox behind the bell. */
+    val notifications: StateFlow<List<NotificationLog>> = dao.observeNotifications(200)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** Clears the badge. Called when the student opens the inbox. */
+    fun markNotificationsRead() = viewModelScope.launch { dao.markAllNotificationsRead() }
 
     /** Re-arms reminders whenever the timetable changes. */
     private val timetableWatcher: Job = viewModelScope.launch {

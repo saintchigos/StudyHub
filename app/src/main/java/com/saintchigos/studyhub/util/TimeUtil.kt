@@ -80,27 +80,35 @@ object TimeUtil {
      * Human countdown such as "in 3 days", "in 4h 20m", "overdue by 2h".
      */
     fun relativeLabel(epochMillis: Long, reference: LocalDateTime = now()): String {
-        val target = toLocalDateTime(epochMillis)
-        val duration = Duration.between(reference, target)
-        val overdue = duration.isNegative
+        val duration = Duration.between(reference, toLocalDateTime(epochMillis))
         val abs = duration.abs()
+        if (abs.seconds < 60) return "now"
+        return if (duration.isNegative) "overdue by ${magnitude(abs)}" else "in ${magnitude(abs)}"
+    }
 
+    /**
+     * How long ago something happened, such as "just now", "4 min ago", "3 days ago".
+     *
+     * For things that already happened rather than deadlines still to meet, so
+     * a reminder that arrived a minute ago never reads as "overdue by 1 min".
+     */
+    fun agoLabel(epochMillis: Long, reference: LocalDateTime = now()): String {
+        val abs = Duration.between(reference, toLocalDateTime(epochMillis)).abs()
+        if (abs.seconds < 60) return "just now"
+        return "${magnitude(abs)} ago"
+    }
+
+    /** The size of a gap on its own, without saying whether it is ahead or behind. */
+    private fun magnitude(abs: Duration): String {
         val days = abs.toDays()
         val hours = abs.toHours() % 24
         val minutes = abs.toMinutes() % 60
 
-        val body = when {
-            abs.seconds < 60 -> "now"
+        return when {
             days >= 1 && days < 7 -> "$days day${plural(days)}"
             days >= 7 -> "${days / 7} week${plural(days / 7)}"
             hours >= 1 -> "$hours h${if (minutes > 0) " $minutes m" else ""}"
             else -> "$minutes min"
-        }
-
-        return when {
-            abs.seconds < 60 -> body
-            overdue -> "overdue by $body"
-            else -> "in $body"
         }
     }
 

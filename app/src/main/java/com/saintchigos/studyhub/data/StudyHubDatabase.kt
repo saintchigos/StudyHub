@@ -31,9 +31,10 @@ import java.util.UUID
         Report::class,
         Message::class,
         FocusSession::class,
-        DailyAlarm::class
+        DailyAlarm::class,
+        NotificationLog::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = true
 )
 abstract class StudyHubDatabase : RoomDatabase() {
@@ -57,8 +58,9 @@ abstract class StudyHubDatabase : RoomDatabase() {
                         MIGRATION_3_4,
                         MIGRATION_4_5,
                         MIGRATION_5_6,
-                        MIGRATION_6_7
-                    )
+MIGRATION_6_7,
+            MIGRATION_7_8
+        )
                     .build()
                     .also { instance = it }
             }
@@ -75,6 +77,38 @@ abstract class StudyHubDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
                     "ALTER TABLE `daily_alarms` ADD COLUMN `soundUri` TEXT"
+                )
+            }
+        }
+
+        /**
+         * Adds the in-app notification inbox behind the bell.
+         *
+         * A brand new table with nothing in it, so no existing row is read or
+         * rewritten. A `readAt` of null means "still unread", which lets the badge
+         * count be a plain indexed read rather than a separate flag that could fall
+         * out of step with the text.
+         */
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `notification_log` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `kind` TEXT NOT NULL,
+                        `title` TEXT NOT NULL,
+                        `body` TEXT NOT NULL,
+                        `createdAt` INTEGER NOT NULL,
+                        `readAt` INTEGER,
+                        `syncId` TEXT NOT NULL,
+                        `updatedAt` INTEGER NOT NULL,
+                        `deleted` INTEGER NOT NULL DEFAULT 0
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_notification_log_readAt` " +
+                        "ON `notification_log` (`readAt`)"
                 )
             }
         }
