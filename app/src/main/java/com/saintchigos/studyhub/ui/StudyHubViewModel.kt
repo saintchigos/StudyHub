@@ -18,6 +18,7 @@ import com.saintchigos.studyhub.data.ProgrammePlan
 import com.saintchigos.studyhub.data.SessionWithCourse
 import com.saintchigos.studyhub.data.StudyHubDatabase
 import com.saintchigos.studyhub.reminder.ClassAlarms
+import com.saintchigos.studyhub.ui.theme.Accent
 import com.saintchigos.studyhub.util.StudyHubPrefs
 import com.saintchigos.studyhub.util.TimeUtil
 import kotlinx.coroutines.Dispatchers
@@ -116,6 +117,18 @@ class StudyHubViewModel(app: Application) : AndroidViewModel(app) {
     private val _themeMode = MutableStateFlow(prefs.themeMode)
     val themeMode: StateFlow<String> = _themeMode.asStateFlow()
 
+    private val _accent = MutableStateFlow(Accent.fromName(prefs.accent))
+    val accent: StateFlow<Accent> = _accent.asStateFlow()
+
+    private val _dynamicColor = MutableStateFlow(prefs.dynamicColor)
+    val dynamicColor: StateFlow<Boolean> = _dynamicColor.asStateFlow()
+
+    private val _amoled = MutableStateFlow(prefs.amoled)
+    val amoled: StateFlow<Boolean> = _amoled.asStateFlow()
+
+    private val _fontScale = MutableStateFlow(prefs.fontScale)
+    val fontScale: StateFlow<Float> = _fontScale.asStateFlow()
+
     private val _termsAccepted = MutableStateFlow(prefs.termsAccepted)
     val termsAccepted: StateFlow<Boolean> = _termsAccepted.asStateFlow()
 
@@ -144,6 +157,32 @@ class StudyHubViewModel(app: Application) : AndroidViewModel(app) {
     fun setThemeMode(mode: String) {
         prefs.themeMode = mode
         _themeMode.value = mode
+    }
+
+    /**
+     * Switching accent, wallpaper colours, AMOLED or text size all collapse onto the
+     * accent picker being irrelevant: taking the wallpaper's colours means the
+     * student's chosen accent is ignored, so it is hidden rather than left looking
+     * broken when they come back.
+     */
+    fun setAccent(value: Accent) {
+        prefs.accent = value.name
+        _accent.value = value
+    }
+
+    fun setDynamicColor(enabled: Boolean) {
+        prefs.dynamicColor = enabled
+        _dynamicColor.value = enabled
+    }
+
+    fun setAmoled(enabled: Boolean) {
+        prefs.amoled = enabled
+        _amoled.value = enabled
+    }
+
+    fun setFontScale(scale: Float) {
+        prefs.fontScale = scale
+        _fontScale.value = prefs.fontScale
     }
 
     fun acceptTerms() {

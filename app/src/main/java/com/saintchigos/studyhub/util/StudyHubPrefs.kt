@@ -62,6 +62,37 @@ class StudyHubPrefs(context: Context) {
         get() = prefs.getString(KEY_THEME, "system") ?: "system"
         set(value) = prefs.edit().putString(KEY_THEME, value).apply()
 
+    /**
+     * Which accent palette to generate the theme from, as an [com.saintchigos.studyhub.ui.theme.Acccent] name.
+     *
+     * Stored by name rather than as a colour so the scheme can be regenerated from a
+     * seed later and still look right, and so an accent added in a future release
+     * cannot break an existing install.
+     */
+    var accent: String
+        get() = prefs.getString(KEY_ACCENT, "OCEAN") ?: "OCEAN"
+        set(value) = prefs.edit().putString(KEY_ACCENT, value).apply()
+
+    /** Whether the wallpaper's colours should win over the chosen accent. */
+    var dynamicColor: Boolean
+        get() = prefs.getBoolean(KEY_DYNAMIC_COLOR, true)
+        set(value) = prefs.edit().putBoolean(KEY_DYNAMIC_COLOR, value).apply()
+
+    /** True black backgrounds in dark mode, which saves power on OLED screens. */
+    var amoled: Boolean
+        get() = prefs.getBoolean(KEY_AMOLED, false)
+        set(value) = prefs.edit().putBoolean(KEY_AMOLED, value).apply()
+
+    /**
+     * Text size multiplier applied on top of the phone's own font size.
+     *
+     * A student who finds the default too small should not have to leave the app to
+     * change it, and the phone setting may already be turned down for battery.
+     */
+    var fontScale: Float
+        get() = prefs.getFloat(KEY_FONT_SCALE, 1f)
+        set(value) = prefs.edit().putFloat(KEY_FONT_SCALE, value.coerceIn(0.85f, 1.5f)).apply()
+
     private companion object {
         const val KEY_SETUP_COMPLETE = "setup_complete"
         const val KEY_FIRST_LEAD = "first_class_lead_minutes"
@@ -70,6 +101,10 @@ class StudyHubPrefs(context: Context) {
         const val KEY_VIBRATE = "reminder_vibrate"
         const val KEY_TERMS = "terms_accepted"
         const val KEY_THEME = "theme_mode"
+        const val KEY_ACCENT = "accent"
+        const val KEY_DYNAMIC_COLOR = "dynamic_color"
+        const val KEY_AMOLED = "amoled"
+        const val KEY_FONT_SCALE = "font_scale"
         const val KEY_LAST_ACTIVE_DAY = "last_active_day"
         const val KEY_STREAK_DAYS = "streak_days"
         const val KEY_SEEN_WELCOME = "seen_welcome"

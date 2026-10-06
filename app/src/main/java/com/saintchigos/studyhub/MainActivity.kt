@@ -144,8 +144,18 @@ fun StudyHubApp(viewModel: StudyHubViewModel = viewModel()) {
         "dark" -> true
         else -> isSystemInDarkTheme()
     }
+    val accent by viewModel.accent.collectAsStateWithLifecycle()
+    val dynamicColor by viewModel.dynamicColor.collectAsStateWithLifecycle()
+    val amoled by viewModel.amoled.collectAsStateWithLifecycle()
+    val fontScale by viewModel.fontScale.collectAsStateWithLifecycle()
 
-    StudyHubTheme(darkTheme = darkTheme) {
+    StudyHubTheme(
+        darkTheme = darkTheme,
+        accent = accent,
+        dynamicColor = dynamicColor,
+        amoled = amoled,
+        fontScale = fontScale,
+    ) {
         Surface(color = MaterialTheme.colorScheme.surface) {
             AppRoot(viewModel)
         }
