@@ -43,7 +43,15 @@ data class DailyAlarm(
     val daysMask: Int = ALL_DAYS,
     val enabled: Boolean = true,
     val vibrate: Boolean = true,
-    val sound: Boolean = true
+    val sound: Boolean = true,
+    /**
+     * The student's chosen tone, as a stringified content URI.
+     *
+     * Null means "use the phone's own alarm tone". Kept nullable so a student who
+     * deletes the file they picked falls back to the system alarm rather than a
+     * silent alarm.
+     */
+    val soundUri: String? = null
 ) {
     companion object {
         const val ALL_DAYS = 0b1111111

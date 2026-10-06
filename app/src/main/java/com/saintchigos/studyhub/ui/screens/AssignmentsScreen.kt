@@ -1,6 +1,7 @@
 package com.saintchigos.studyhub.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,12 +14,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -33,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.saintchigos.studyhub.ui.StudyHubViewModel
+import com.saintchigos.studyhub.ui.components.AddAssignmentDialog
 import com.saintchigos.studyhub.ui.components.CourseTag
 import com.saintchigos.studyhub.ui.components.EmptyState
 import com.saintchigos.studyhub.ui.components.SectionHeader
@@ -48,10 +52,12 @@ private enum class TaskFilter(val label: String) {
 }
 
 @Composable
-fun AssignmentsScreen(viewModel: StudyHubViewModel) {
+fun AssignmentsScreen(viewModel: StudyHubViewModel, openAddOnStart: Boolean = false) {
     val assignments by viewModel.assignments.collectAsStateWithLifecycle()
+    val courses by viewModel.courses.collectAsStateWithLifecycle()
     val now = TimeUtil.toEpochMillis(TimeUtil.now())
     var filter by remember { mutableStateOf(TaskFilter.ALL) }
+    var showAdd by remember { mutableStateOf(openAddOnStart) }
 
     val visible = when (filter) {
         TaskFilter.ALL -> assignments
@@ -59,7 +65,10 @@ fun AssignmentsScreen(viewModel: StudyHubViewModel) {
         TaskFilter.DONE -> assignments.filter { it.isDone }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    // The FAB and the EmptyState both open the same dialog, so an empty list still
+    // offers a way to add the first task instead of a dead end.
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
         ScreenHeader(
             title = "Assignments",
             subtitle = "${assignments.count { !it.isDone }} open of ${assignments.size}"
@@ -165,5 +174,28 @@ fun AssignmentsScreen(viewModel: StudyHubViewModel) {
                 }
             }
         }
+        }
+
+        // Always visible rather than hidden in an overflow menu, because adding a
+        // task is the main thing a student comes here to do.
+        FloatingActionButton(
+            onClick = { showAdd = true },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
+        ) {
+            Icon(Icons.Filled.Add, contentDescription = "Add assignment")
+        }
+    }
+
+    if (showAdd) {
+        AddAssignmentDialog(
+            courses = courses,
+            onDismiss = { showAdd = false },
+            onSave = { courseId, title, dueAt, priority ->
+                viewModel.addAssignment(courseId, title, dueAt, priority)
+                showAdd = false
+            }
+        )
     }
 }

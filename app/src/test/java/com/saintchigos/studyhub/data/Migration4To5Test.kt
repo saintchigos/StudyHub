@@ -72,7 +72,11 @@ class Migration4To5Test {
         )
             // Both steps are needed: the database is opened at the current version,
             // so Room walks 4 -> 5 -> 6 and would refuse a gap.
-            .addMigrations(StudyHubDatabase.MIGRATION_4_5, StudyHubDatabase.MIGRATION_5_6)
+            .addMigrations(
+                StudyHubDatabase.MIGRATION_6_7,
+                StudyHubDatabase.MIGRATION_5_6,
+                StudyHubDatabase.MIGRATION_4_5
+            )
             .allowMainThreadQueries()
             .build()
 

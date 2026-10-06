@@ -105,7 +105,7 @@ fun CoursesScreen(viewModel: StudyHubViewModel) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(course.name, style = MaterialTheme.typography.titleMedium)
                                 Text(
-                                    text = "${course.code} Â· ${course.credits} credits",
+                                    text = "${course.code} · ${course.credits} credits",
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -162,7 +162,7 @@ fun CoursesScreen(viewModel: StudyHubViewModel) {
         val course = courses.firstOrNull { it.id == id }
         if (course != null) {
             AddAssignmentDialog(
-                courseLabel = "${course.code} Â· ${course.name}",
+                courseLabel = "${course.code} · ${course.name}",
                 onDismiss = { assignmentCourseId = null },
                 onConfirm = { title, dueAt, priority ->
                     viewModel.addAssignment(id, title, dueAt, priority)
@@ -176,7 +176,7 @@ fun CoursesScreen(viewModel: StudyHubViewModel) {
         val course = courses.firstOrNull { it.id == id }
         if (course != null) {
             AddExamDialog(
-                courseLabel = "${course.code} Â· ${course.name}",
+                courseLabel = "${course.code} · ${course.name}",
                 onDismiss = { examCourseId = null },
                 onConfirm = { title, startsAt, duration, room, notes ->
                     viewModel.addExam(id, title, startsAt, duration, room, notes)

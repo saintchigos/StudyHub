@@ -24,3 +24,10 @@ Thumbs.db
 *.jks
 *.keystore
 keystore.properties
+
+# JVM crash dumps from low-memory builds
+hs_err_pid*.log
+replay_pid*.log
+
+# Kotlin build scratch
+.kotlin/

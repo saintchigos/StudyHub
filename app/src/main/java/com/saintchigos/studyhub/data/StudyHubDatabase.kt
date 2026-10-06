@@ -33,7 +33,7 @@ import java.util.UUID
         FocusSession::class,
         DailyAlarm::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = true
 )
 abstract class StudyHubDatabase : RoomDatabase() {
@@ -56,10 +56,26 @@ abstract class StudyHubDatabase : RoomDatabase() {
                         MIGRATION_2_3,
                         MIGRATION_3_4,
                         MIGRATION_4_5,
-                        MIGRATION_5_6
+                        MIGRATION_5_6,
+                        MIGRATION_6_7
                     )
                     .build()
                     .also { instance = it }
+            }
+        }
+
+        /**
+         * Lets each alarm carry its own ringtone.
+         *
+         * One nullable column, so existing alarms simply read back as null and keep
+         * using the phone's own alarm tone. No row is rewritten, which keeps a
+         * student's saved alarms exactly as they were across the upgrade.
+         */
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE `daily_alarms` ADD COLUMN `soundUri` TEXT"
+                )
             }
         }
 

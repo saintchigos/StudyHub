@@ -22,7 +22,12 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.Alarm
+import androidx.compose.material.icons.filled.CalendarViewWeek
+import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.Grade
 import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.School
@@ -30,6 +35,7 @@ import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import com.saintchigos.studyhub.ui.components.ScreenHeader
@@ -44,7 +50,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.saintchigos.studyhub.ui.CommunityViewModel
@@ -67,7 +75,14 @@ fun DashboardScreen(
     communityViewModel: CommunityViewModel? = null,
     onOpenAccount: () -> Unit = {},
     onOpenCommunity: () -> Unit = {},
-    onOpenFocus: () -> Unit = {}
+    onOpenFocus: () -> Unit = {},
+    onOpenAlarms: () -> Unit = {},
+    onOpenCourses: () -> Unit = {},
+    onOpenTasks: () -> Unit = {},
+    onOpenAddTask: () -> Unit = {},
+    onOpenExams: () -> Unit = {},
+    onOpenAddExam: () -> Unit = {},
+    onOpenTimetable: () -> Unit = {}
 ) {
     val courses by viewModel.courses.collectAsStateWithLifecycle()
     val assignments by viewModel.assignments.collectAsStateWithLifecycle()
@@ -100,6 +115,22 @@ fun DashboardScreen(
         }
 
         item { QuickStartCard(onOpenFocus) }
+
+        // One tap to every destination, plus the two create actions. Focus and
+        // Courses lost their bottom bar slot to keep the bar readable, so Home is
+        // where everything is reachable.
+        item {
+            QuickActionsGrid(
+                onOpenFocus = onOpenFocus,
+                onOpenAlarms = onOpenAlarms,
+                onOpenCourses = onOpenCourses,
+                onOpenTasks = onOpenTasks,
+                onOpenAddTask = onOpenAddTask,
+                onOpenExams = onOpenExams,
+                onOpenAddExam = onOpenAddExam,
+                onOpenTimetable = onOpenTimetable
+            )
+        }
 
         item { CommunityCard(communityViewModel, onOpenAccount, onOpenCommunity) }
 
@@ -478,6 +509,195 @@ private fun StudyTipCard(tip: String, onDismiss: () -> Unit) {
  * in; with one it shows who they are and how many classmates are in their year.
  */
 /** One tap into the focus timer, which is the thing a student wants at 8am. */
+/**
+ * Two shortcuts for the screens that moved out of the bottom bar.
+ *
+ * Full width each rather than side by side, so the labels read "Focus timer" and
+ * "Courses" in full instead of being clipped to fit a half-width card.
+ */
+@Composable
+private fun JumpToRow(onOpenFocus: () -> Unit, onOpenCourses: () -> Unit) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        ShortcutCard(
+            title = "Focus timer",
+            subtitle = "Run a block, set wake-up alarms, see your study log",
+            icon = Icons.Filled.Timer,
+            onClick = onOpenFocus
+        )
+        Spacer(Modifier.height(8.dp))
+        ShortcutCard(
+            title = "Courses",
+            subtitle = "Your modules, credits and class groups",
+            icon = Icons.Filled.Grade,
+            onClick = onOpenCourses
+        )
+    }
+}
+
+/**
+ * The Home grid of shortcuts.
+ *
+ * A grid of square tiles rather than a stack of wide cards. Two rows of three fit
+ * on a 360x800dp screen without pushing the timetable and the day's classes off the
+ * bottom, and each tile keeps a 48dp-plus target while its label stays on one line.
+ *
+ * Every tile is a destination the student would otherwise have to hunt for in the
+ * bottom bar, in More, or on another screen entirely.
+ */
+@Composable
+private fun QuickActionsGrid(
+    onOpenFocus: () -> Unit,
+    onOpenAlarms: () -> Unit,
+    onOpenCourses: () -> Unit,
+    onOpenTasks: () -> Unit,
+    onOpenAddTask: () -> Unit,
+    onOpenExams: () -> Unit,
+    onOpenAddExam: () -> Unit,
+    onOpenTimetable: () -> Unit
+) {
+    val tiles = listOf(
+        QuickAction("Study", Icons.Filled.Timer, onOpenFocus),
+        QuickAction("Alarm", Icons.Filled.Alarm, onOpenAlarms),
+        QuickAction("Modules", Icons.Filled.Grade, onOpenCourses),
+        QuickAction("Timetable", Icons.Filled.CalendarViewWeek, onOpenTimetable),
+        QuickAction("Tasks", Icons.Filled.Checklist, onOpenTasks),
+        QuickAction("Exams", Icons.Filled.Quiz, onOpenExams)
+    )
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        SectionHeader(title = "Jump to")
+        Spacer(Modifier.height(8.dp))
+        // Chunked so the grid stays in pairs on any width rather than stretching.
+        tiles.chunked(3).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                row.forEach { tile ->
+                    QuickActionTile(
+                        label = tile.label,
+                        icon = tile.icon,
+                        onClick = tile.onClick,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                // Keeps the last row left-aligned when it has fewer than three.
+                repeat(3 - row.size) {
+                    Spacer(Modifier.weight(1f))
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+        }
+
+        // The two create actions, side by side and full width, because adding is
+        // the fastest path from "I have been given work" to it being tracked.
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilledTonalButton(
+                onClick = onOpenAddTask,
+                modifier = Modifier.weight(1f).height(48.dp)
+            ) {
+                Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("Task")
+            }
+            FilledTonalButton(
+                onClick = onOpenAddExam,
+                modifier = Modifier.weight(1f).height(48.dp)
+            ) {
+                Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("Test")
+            }
+        }
+    }
+}
+
+private data class QuickAction(
+    val label: String,
+    val icon: ImageVector,
+    val onClick: () -> Unit
+)
+
+@Composable
+private fun QuickActionTile(
+    label: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        onClick = onClick,
+        modifier = modifier.height(76.dp),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(22.dp)
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                label,
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@Composable
+private fun ShortcutCard(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(Modifier.size(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Spacer(Modifier.size(8.dp))
+            Icon(
+                Icons.Filled.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
 @Composable
 private fun QuickStartCard(onOpenFocus: () -> Unit) {
     Card(

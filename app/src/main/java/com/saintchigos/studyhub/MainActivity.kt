@@ -11,8 +11,16 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarViewWeek
@@ -43,6 +51,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -54,6 +63,7 @@ import com.saintchigos.studyhub.ui.FocusViewModel
 import com.saintchigos.studyhub.ui.StudyHubViewModel
 import com.saintchigos.studyhub.ui.components.ClassAlertBanner
 import com.saintchigos.studyhub.ui.screens.AccountScreen
+import com.saintchigos.studyhub.ui.screens.AlarmsScreen
 import com.saintchigos.studyhub.ui.screens.AssignmentsScreen
 import com.saintchigos.studyhub.ui.screens.CommunityScreen
 import com.saintchigos.studyhub.ui.screens.CoursesScreen
@@ -100,14 +110,17 @@ class MainActivity : ComponentActivity() {
 /**
  * Bottom bar tabs. Icons are filled and distinct at a glance, because a student
  * should not have to read six labels to find the timetable.
+ *
+ * Five, not seven. At 360dp each of seven items got about 51dp, so the labels
+ * crowded each other and the touch targets fell under the 48dp minimum. Exams,
+ * Focus and Courses now live on Home and in More instead, which is where a
+ * student looks for them anyway rather than mid-tap during a lesson.
  */
 private enum class Destination(val route: String, val label: String, val icon: ImageVector) {
     Dashboard("dashboard", "Home", Icons.Filled.SpaceDashboard),
     Timetable("timetable", "Classes", Icons.Filled.CalendarViewWeek),
     Assignments("assignments", "Tasks", Icons.Filled.Checklist),
     Exams("exams", "Exams", Icons.Filled.Quiz),
-    Focus("focus", "Focus", Icons.Filled.Timer),
-    Courses("courses", "Courses", Icons.Filled.Grade),
     Settings("settings", "More", Icons.Filled.Tune)
 }
 
@@ -119,6 +132,9 @@ private const val ROUTE_COMMUNITY = "community"
 private const val ROUTE_ACCOUNT = "account"
 private const val ROUTE_TERMS = "legal/terms"
 private const val ROUTE_PRIVACY = "legal/privacy"
+private const val ROUTE_FOCUS = "focus"
+private const val ROUTE_ALARMS = "alarms"
+private const val ROUTE_COURSES = "courses"
 
 @Composable
 fun StudyHubApp(viewModel: StudyHubViewModel = viewModel()) {
@@ -169,9 +185,35 @@ private fun AppRoot(viewModel: StudyHubViewModel) {
     }
 
 
+    // Home's "Add task" and "Add test" buttons need the destination screen to open its
+    // dialog on arrival. Held here as plain state rather than passed as a navigation
+    // argument, because `restoreState` reuses a saved entry whose arguments do not
+    // include the one-off flag, so the dialog silently did not open.
+    var openAddTask by remember { mutableStateOf(false) }
+    var openAddExam by remember { mutableStateOf(false) }
+
+    // One flag shared by the bar and the scroll connection below.
+    var barHidden by remember { mutableStateOf(false) }
+
     Scaffold(
         bottomBar = {
-            NavigationBar {
+            // Slides out of the way while reading a long list and comes back on the
+            // first upward scroll. On a 360x800dp screen the bar is 80dp, which is a
+            // lot of a study app's usable height, and the content underneath is what
+            // the student is actually reading.
+            //
+            // Translated rather than removed, so the Scaffold keeps reserving the
+            // same inset and the content does not jump when it hides.
+            val density = LocalDensity.current
+            val hiddenPx = with(density) { 200.dp.toPx() }
+
+            NavigationBar(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        translationY = if (barHidden) hiddenPx else 0f
+                    }
+            ) {
                 Destination.entries.forEach { destination ->
                     val selected =
                         currentDestination?.hierarchy?.any { it.route == destination.route } == true
@@ -207,20 +249,75 @@ private fun AppRoot(viewModel: StudyHubViewModel) {
 
             NavHost(
                 navController = navController,
-                startDestination = Destination.Dashboard.route
+                startDestination = Destination.Dashboard.route,
+                // Watching the nested scroll here rather than giving each screen its
+                // own state means the bar behaves the same on every list in the app.
+                modifier = Modifier.nestedScroll(
+                    remember {
+                        object : NestedScrollConnection {
+                            override fun onPostScroll(
+                                consumed: Offset,
+                                available: Offset,
+                                source: NestedScrollSource
+                            ): Offset {
+                                // available.y > 0 means there is more content below,
+                                // so the student is scrolling down.
+                                if (available.y > 8f) barHidden = true
+                                if (available.y < -8f) barHidden = false
+                                return Offset.Zero
+                            }
+                        }
+                    }
+                )
             ) {
                 composable(Destination.Timetable.route) { TimetableScreen(viewModel) }
-                composable(Destination.Assignments.route) { AssignmentsScreen(viewModel) }
-                composable(Destination.Exams.route) { ExamsScreen(viewModel) }
-                composable(Destination.Courses.route) { CoursesScreen(viewModel) }
-                composable(Destination.Focus.route) { FocusScreen(focusViewModel) }
+                composable(Destination.Assignments.route) {
+                    // Keyed on the flag so the dialog opens once on arrival rather
+                    // than on every recomposition, and the flag is cleared straight
+                    // after so it cannot reopen when the student comes back.
+                    val openAdd = openAddTask
+                    LaunchedEffect(openAdd) { if (openAdd) openAddTask = false }
+                    AssignmentsScreen(
+                        viewModel = viewModel,
+                        openAddOnStart = openAdd
+                    )
+                }
+                composable(Destination.Exams.route) {
+                    val openAdd = openAddExam
+                    LaunchedEffect(openAdd) { if (openAdd) openAddExam = false }
+                    ExamsScreen(
+                        viewModel = viewModel,
+                        openAddOnStart = openAdd
+                    )
+                }
+                composable(ROUTE_COURSES) { CoursesScreen(viewModel) }
+                composable(ROUTE_FOCUS) { FocusScreen(focusViewModel) }
+composable(ROUTE_ALARMS) { AlarmsScreen(focusViewModel) }
                 composable(Destination.Dashboard.route) {
                     DashboardScreen(
                         viewModel = viewModel,
                         communityViewModel = communityViewModel,
                         onOpenAccount = { navController.navigate(ROUTE_ACCOUNT) },
                         onOpenCommunity = { navController.navigate(ROUTE_COMMUNITY) },
-                        onOpenFocus = { navController.navigate(Destination.Focus.route) }
+                        onOpenFocus = { navController.navigate(ROUTE_FOCUS) },
+                        // The alarm tile now has its own screen instead of landing on the study timer.
+                        onOpenAlarms = {
+                            navController.navigate(ROUTE_ALARMS) {
+                                launchSingleTop = true
+                            }
+                        },
+                        onOpenCourses = { navController.navigate(ROUTE_COURSES) },
+                        onOpenTasks = { navController.navigate(Destination.Assignments.route) },
+                        onOpenAddTask = {
+                            openAddTask = true
+                            navController.navigate(Destination.Assignments.route)
+                        },
+                        onOpenExams = { navController.navigate(Destination.Exams.route) },
+                        onOpenAddExam = {
+                            openAddExam = true
+                            navController.navigate(Destination.Exams.route)
+                        },
+                        onOpenTimetable = { navController.navigate(Destination.Timetable.route) }
                     )
                 }
                 composable(Destination.Settings.route) {
@@ -229,6 +326,10 @@ private fun AppRoot(viewModel: StudyHubViewModel) {
                         communityViewModel = communityViewModel,
                         onOpenCommunity = { navController.navigate(ROUTE_COMMUNITY) },
                         onOpenAccount = { navController.navigate(ROUTE_ACCOUNT) },
+                        // Focus and Courses left the bottom bar, so More is now the
+                        // other way into them.
+                        onOpenFocus = { navController.navigate(ROUTE_FOCUS) },
+                        onOpenCourses = { navController.navigate(ROUTE_COURSES) },
                         onOpenLegal = { kind ->
                             navController.navigate(
                                 if (kind == LegalKind.Terms) ROUTE_TERMS else ROUTE_PRIVACY

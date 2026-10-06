@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.saintchigos.studyhub.data.DailyAlarm
 import com.saintchigos.studyhub.data.FocusSession
 import com.saintchigos.studyhub.data.StudyHubDatabase
+import com.saintchigos.studyhub.reminder.AlarmService
 import com.saintchigos.studyhub.reminder.DailyAlarms
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -356,7 +357,9 @@ class FocusViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Fires the alarm now so a student can confirm it actually reaches them. */
     fun previewAlarm(alarm: DailyAlarm) {
-        DailyAlarms.showNotification(context, alarm.id, alarm.label, alarm.vibrate, alarm.sound)
+        // Goes through the same service as a real alarm, so Test shows the true
+        // behaviour instead of a notification that behaves differently.
+        AlarmService.start(context, alarm.id, alarm.label, alarm.vibrate, alarm.sound)
     }
 
     override fun onCleared() {

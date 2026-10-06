@@ -37,6 +37,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -98,8 +99,6 @@ fun FocusScreen(viewModel: FocusViewModel) {
     val sessionCount by viewModel.sessionCount.collectAsStateWithLifecycle()
     val dailyGoal by viewModel.dailyGoalMinutes.collectAsStateWithLifecycle()
 
-    var editingAlarm by remember { mutableStateOf<DailyAlarm?>(null) }
-    var addingAlarm by remember { mutableStateOf(false) }
     var confirmClear by remember { mutableStateOf(false) }
     var editingGoal by remember { mutableStateOf(false) }
 
@@ -124,17 +123,6 @@ fun FocusScreen(viewModel: FocusViewModel) {
 
         item { TimerCard(phase, remaining, selected, label, viewModel) }
 
-        item {
-            AlarmSection(
-                alarms = alarms,
-                onAdd = { addingAlarm = true },
-                onToggle = viewModel::toggleAlarm,
-                onDelete = viewModel::deleteAlarm,
-                onPreview = viewModel::previewAlarm,
-                onEdit = { editingAlarm = it }
-            )
-        }
-
         if (totals.isNotEmpty()) {
             item { TotalsCard(totals) }
         }
@@ -154,34 +142,6 @@ fun FocusScreen(viewModel: FocusViewModel) {
             onSave = {
                 viewModel.setDailyGoal(it)
                 editingGoal = false
-            }
-        )
-    }
-
-    if (addingAlarm || editingAlarm != null) {
-        AlarmEditorDialog(
-            existing = editingAlarm,
-            onDismiss = {
-                addingAlarm = false
-                editingAlarm = null
-            },
-            onSave = { alarmLabel, minuteOfDay, mask, vibrate, sound ->
-                val existing = editingAlarm
-                if (existing == null) {
-                    viewModel.addAlarm(alarmLabel, minuteOfDay, mask, vibrate, sound)
-                } else {
-                    viewModel.updateAlarm(
-                        existing.copy(
-                            label = alarmLabel,
-                            minuteOfDay = minuteOfDay,
-                            daysMask = mask,
-                            vibrate = vibrate,
-                            sound = sound
-                        )
-                    )
-                }
-                addingAlarm = false
-                editingAlarm = null
             }
         )
     }
@@ -406,7 +366,7 @@ private fun TimerCard(
                     is FocusPhase.Idle -> "Pick a length, then start when you are ready."
                     is FocusPhase.Running -> "Running. Leave the app, it keeps going."
                     is FocusPhase.Paused -> "Paused. Resume when you are back."
-                    is FocusPhase.Finished -> "Take a short break, then go again."
+                    is FocusPhase.Finished -> "Logged ${phase.actualMinutes} min. Take a break, then go again."
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -459,7 +419,7 @@ private fun TimerCard(
                     }
                     Button(
                         onClick = { viewModel.stop() },
-                        modifier = Modifier.weight(1f).height(52.dp),
+                        modifier = Modifier.weight(1f).height(56.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.errorContainer,
                             contentColor = MaterialTheme.colorScheme.onErrorContainer
@@ -467,7 +427,7 @@ private fun TimerCard(
                     ) {
                         Icon(Icons.Filled.Stop, contentDescription = null)
                         Spacer(Modifier.size(8.dp))
-                        Text("Finish now")
+                        Text("Turn off")
                     }
                 }
             }
@@ -523,38 +483,43 @@ private fun SubjectControls(label: String, viewModel: FocusViewModel) {
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Start
         )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            SUBJECT_CHOICES.take(3).forEach { option ->
-                FilterChip(
-                    selected = label == option,
-                    onClick = { viewModel.setLabel(option) },
-                    label = { Text(option, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            SUBJECT_CHOICES.drop(3).forEach { option ->
-                FilterChip(
-                    selected = label == option,
-                    onClick = { viewModel.setLabel(option) },
-                    label = { Text(option, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                    modifier = Modifier.weight(1f)
-                )
-            }
-            Spacer(Modifier.weight(1f))
+        // One chip per row rather than three across. Three across left about
+        // 93dp per chip, which is not enough for "Deep work" or "Exam prep":
+        // those truncated to "Deep..." and "Exam..." while the shorter
+        // "Reading" and "Revision" fitted and looked fine. A full-width row per
+        // subject gives every label the entire width.
+        Spacer(Modifier.height(6.dp))
+        SUBJECT_CHOICES.forEach { option ->
+            FilterChip(
+                selected = label == option,
+                onClick = { viewModel.setLabel(option) },
+                label = { Text(option, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                leadingIcon = if (label == option) {
+                    {
+                        Icon(
+                            Icons.Filled.Check,
+                            contentDescription = null,
+                            modifier = Modifier.size(FilterChipDefaults.IconSize)
+                        )
+                    }
+                } else {
+                    null
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(4.dp))
         }
     }
 }
 
+/**
+ * The alarms card, reused by the dedicated [AlarmsScreen].
+ *
+ * Internal rather than private so the alarm UI can live on its own screen instead
+ * of being buried under the study timer.
+ */
 @Composable
-private fun AlarmSection(
+internal fun AlarmSection(
     alarms: List<DailyAlarm>,
     onAdd: () -> Unit,
     onToggle: (DailyAlarm) -> Unit,
@@ -573,7 +538,7 @@ private fun AlarmSection(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Wake-up alarms", style = MaterialTheme.typography.titleMedium)
+                    Text("Alarms", style = MaterialTheme.typography.titleMedium)
                     Text(
                         "Rings in silent mode",
                         style = MaterialTheme.typography.bodySmall,
@@ -695,10 +660,10 @@ private fun AlarmRow(
                 add(if (alarm.sound) "sound" else "silent")
                 if (alarm.vibrate) add("vibrate")
             }
-            // A plain hyphen rather than a middot: the middot does not render in the
-                // default typeface on this OEM build and showed as two boxes.
+// The middot renders correctly on this device; an earlier attempt to replace it
+            // was based on a console encoding artefact, not a real display fault.
             Text(
-                DailyAlarms.daySummary(alarm.daysMask) + " - " + extras.joinToString(", "),
+                DailyAlarms.daySummary(alarm.daysMask) + " · " + extras.joinToString(" · "),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -763,8 +728,13 @@ private fun AlarmRow(
  * the Sound and Vibrate rows and then the buttons clean off the bottom of the
  * screen. Splitting it keeps every control reachable on a small device.
  */
+/**
+ * Create or edit one alarm.
+ *
+ * Internal because the dedicated [AlarmsScreen] drives the same editor.
+ */
 @Composable
-private fun AlarmEditorDialog(
+internal fun AlarmEditorDialog(
     existing: DailyAlarm?,
     onDismiss: () -> Unit,
     onSave: (String, Int, Int, Boolean, Boolean) -> Unit
@@ -964,13 +934,17 @@ private fun AlarmTimeDialog(
         initialMinute = initialMinuteOfDay % 60,
         is24Hour = false
     )
+    // The dial fills the dialog rather than being told a maximum height. Any cap
+    // small enough to fit an alert dialog clipped the clock away, which left the
+    // student with two bare numbers and no visible clock face.
+    val dialHeight = 320.dp
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Alarm time") },
         text = {
             Box(
-                modifier = Modifier.fillMaxWidth().heightIn(max = 380.dp),
+                modifier = Modifier.fillMaxWidth().height(dialHeight),
                 contentAlignment = Alignment.Center
             ) {
                 TimePicker(state = timeState)

@@ -4,8 +4,18 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Keeps the CPU on while the ringtone loops. Without it Android throws
+         SecurityException inside AlarmService on a locked screen. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+
+    <!-- Lets the wake-up alarm take over the screen instead of hiding as a
+         notification. From Android 14 this is only granted by default to apps
+         whose core job is an alarm, which is what this one is doing. -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
 
     <application
         android:allowBackup="true"
@@ -27,6 +37,28 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- The alarm screen. Not exported because only our own notification
+             starts it, showWhenLocked so it appears over the keyguard, and
+             excludeFromRecents so it does not sit in the app switcher. -->
+        <activity
+            android:name=".reminder.AlarmRingActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleInstance"
+            android:noHistory="false"
+            android:showOnLockScreen="true"
+            android:showWhenLocked="true"
+            android:taskAffinity=".alarm"
+            android:theme="@style/Theme.StudyHub" />
+
+        <!-- Owns the ringtone and vibration. A notification owns only its own sound,
+             so unlocking the phone used to dismiss it and silence the alarm. This
+             keeps ringing until Turn off or Snooze. -->
+        <service
+            android:name=".reminder.AlarmService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
 
         <receiver
             android:name=".reminder.ClassAlarmReceiver"

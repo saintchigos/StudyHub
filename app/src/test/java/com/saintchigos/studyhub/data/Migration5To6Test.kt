@@ -51,7 +51,11 @@ class Migration5To6Test {
             StudyHubDatabase::class.java,
             TEST_DB
         )
-            .addMigrations(StudyHubDatabase.MIGRATION_5_6, StudyHubDatabase.MIGRATION_4_5)
+            .addMigrations(
+                StudyHubDatabase.MIGRATION_6_7,
+                StudyHubDatabase.MIGRATION_5_6,
+                StudyHubDatabase.MIGRATION_4_5
+            )
             .allowMainThreadQueries()
             .build()
         val dao = db.dao()

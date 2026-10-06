@@ -18,8 +18,21 @@ import android.content.Intent
 class DailyAlarmReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
+        // The watchdog arrives every few seconds while an alarm is still going, and
+        // carries no alarm id of its own: it asks whether anything is still ringing.
+        if (intent.action == ACTION_WATCHDOG) {
+            val state = DailyAlarms.ringingState(context)
+            // raiseScreen = false: the screen was already taken over on the first
+            // ring. Re-raising it every thirty seconds wedged this OEM's
+            // notification shade open and unusable.
+            if (state != null) DailyAlarms.reinforce(context, state, raiseScreen = false)
+            return
+        }
+
         val id = intent.getLongExtra(DailyAlarms.EXTRA_ALARM_ID, 0L)
         if (id == 0L) return
+
+        val soundUri = intent.getStringExtra(DailyAlarms.EXTRA_SOUND_URI)
 
         when (intent.action) {
             ACTION_SNOOZE -> {
@@ -28,13 +41,16 @@ class DailyAlarmReceiver : BroadcastReceiver() {
                     id,
                     intent.getStringExtra(DailyAlarms.EXTRA_LABEL).orEmpty(),
                     intent.getBooleanExtra(DailyAlarms.EXTRA_VIBRATE, true),
-                    intent.getBooleanExtra(DailyAlarms.EXTRA_SOUND, true)
+                    intent.getBooleanExtra(DailyAlarms.EXTRA_SOUND, true),
+                    soundUri
                 )
+                AlarmService.stop(context)
                 return
             }
 
             ACTION_DISMISS -> {
                 DailyAlarms.dismiss(context, id)
+                AlarmService.stop(context)
                 return
             }
 
@@ -48,7 +64,16 @@ class DailyAlarmReceiver : BroadcastReceiver() {
         val sound = intent.getBooleanExtra(DailyAlarms.EXTRA_SOUND, true)
         val snoozed = intent.getBooleanExtra(DailyAlarms.EXTRA_SNOOZED, false)
 
-        DailyAlarms.showNotification(context, id, label, vibrate, sound)
+        // The service owns the ringing, not the notification. A notification's sound
+        // belongs to the notification, so unlocking the phone dismissed it and the
+        // alarm fell silent.
+        //
+        // markRinging + reinforce also arm the watchdog, so the alarm keeps coming
+        // back if this phone reaps the service mid-sleep.
+        DailyAlarms.reinforce(
+            context,
+            DailyAlarms.RingState(id, label, vibrate, sound, soundUri)
+        )
         if (snoozed) return
 
         // Re-arming is one short query, and a BroadcastReceiver has no coroutine
@@ -68,5 +93,6 @@ class DailyAlarmReceiver : BroadcastReceiver() {
         private const val ACTION = "com.saintchigos.studyhub.DAILY_ALARM"
         private const val ACTION_SNOOZE = DailyAlarms.ACTION_SNOOZE
         private const val ACTION_DISMISS = DailyAlarms.ACTION_DISMISS
+        private const val ACTION_WATCHDOG = "com.saintchigos.studyhub.DAILY_ALARM_WATCHDOG"
     }
 }

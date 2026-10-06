@@ -36,9 +36,18 @@ object DailyAlarms {
     const val EXTRA_ALARM_ID = "alarm_id"
     const val EXTRA_LABEL = "label"
     const val EXTRA_VIBRATE = "vibrate"
-    const val EXTRA_SOUND = "sound"
-    internal const val EXTRA_SNOOZED = "snoozed"
-    const val SNOOZE_MINUTES = 9
+const val EXTRA_SOUND = "sound"
+const val EXTRA_SOUND_URI = "sound_uri"
+internal const val EXTRA_SNOOZED = "snoozed"
+const val SNOOZE_MINUTES = 9
+
+/**
+ * The label used when a student has not named their alarm.
+ *
+ * A wake-up alarm saying nothing is easy to sleep through, so the default is
+ * personal rather than generic.
+ */
+const val DEFAULT_ALARM_LABEL = "Wake up Mr Chigos"
 
     private const val ACTION = "com.saintchigos.studyhub.DAILY_ALARM"
     const val ACTION_SNOOZE = "com.saintchigos.studyhub.DAILY_ALARM_SNOOZE"
@@ -46,9 +55,17 @@ object DailyAlarms {
 
     private const val SNOOZE_REQUEST = 0x50
     private const val DISMISS_REQUEST = 0x51
+    private const val RING_REQUEST = 0x52
 
     /** Shows the alarm again in [SNOOZE_MINUTES] minutes without touching its schedule. */
-    fun snooze(context: Context, alarmId: Long, label: String, vibrate: Boolean, sound: Boolean) {
+    fun snooze(
+        context: Context,
+        alarmId: Long,
+        label: String,
+        vibrate: Boolean,
+        sound: Boolean,
+        soundUri: String? = null
+    ) {
         val am = context.getSystemService(AlarmManager::class.java) ?: return
         val intent = Intent(context, DailyAlarmReceiver::class.java).apply {
             action = ACTION
@@ -56,6 +73,7 @@ object DailyAlarms {
             putExtra(EXTRA_LABEL, label)
             putExtra(EXTRA_VIBRATE, vibrate)
             putExtra(EXTRA_SOUND, sound)
+            putExtra(EXTRA_SOUND_URI, soundUri)
             // Marks this as a snooze so the receiver re-arms by snooze delay rather
             // than by the next weekday, which would skip today's alarm entirely.
             putExtra(EXTRA_SNOOZED, true)
@@ -76,6 +94,146 @@ object DailyAlarms {
 
     fun dismiss(context: Context, alarmId: Long) {
         NotificationManagerCompat.from(context).cancel(alarmId.hashCode())
+    }
+
+    // ---- Surviving a phone that kills the ringing service ---------------------
+    //
+    // A foreground service is not a guarantee on a cheap phone. Budget
+    // Transsion/Android builds routinely reap one within seconds of it starting,
+    // and the alarm goes silent while the student is still asleep.
+    //
+    // The fix is not to trust the service but to keep re-arming it. While an alarm
+    // is ringing, a short exact alarm fires a watchdog that starts the service
+    // again. Exact alarms are exempt from Doze and aggressive app reaping, so this
+    // keeps ringing until the student actually presses a button. Pressing a button
+    // clears the saved state, so the loop ends itself - it is not a runaway.
+
+    private const val RING_PREFS = "daily_alarm_ringing"
+    private const val KEY_RINGING = "ringing"
+    private const val KEY_STARTED_AT = "started_at"
+    private const val KEY_ALARM_ID = "alarm_id"
+    private const val KEY_LABEL = "label"
+    private const val KEY_VIBRATE = "vibrate"
+    private const val KEY_SOUND = "sound"
+    private const val KEY_SOUND_URI = "sound_uri"
+
+    private const val ACTION_WATCHDOG = "com.saintchigos.studyhub.DAILY_ALARM_WATCHDOG"
+    private const val WATCHDOG_REQUEST = 0x53
+
+    /** How often the ringing alarm re-arms itself while still unanswered. */
+    private const val WATCHDOG_INTERVAL_MS = 30_000L
+
+    /**
+     * How long an alarm keeps ringing before giving up.
+     *
+     * Long enough to wake someone who slept through the first ten minutes, short
+     * enough that an alarm left running in a pocket does not shout all morning.
+     */
+    private const val RING_MAX_MS = 15 * 60_000L
+
+    /** What the watchdog needs to put the same alarm back. */
+    data class RingState(
+        val alarmId: Long,
+        val label: String,
+        val vibrate: Boolean,
+        val sound: Boolean,
+        val soundUri: String?
+    )
+
+    fun markRinging(
+        context: Context,
+        alarmId: Long,
+        label: String,
+        vibrate: Boolean,
+        sound: Boolean,
+        soundUri: String?
+    ) {
+        val prefs = context.getSharedPreferences(RING_PREFS, Context.MODE_PRIVATE)
+        val startedAt = prefs.getLong(KEY_STARTED_AT, 0L).takeIf { prefs.getBoolean(KEY_RINGING, false) }
+            ?: System.currentTimeMillis()
+        prefs.edit()
+            .putBoolean(KEY_RINGING, true)
+            .putLong(KEY_STARTED_AT, startedAt)
+            .putLong(KEY_ALARM_ID, alarmId)
+            .putString(KEY_LABEL, label)
+            .putBoolean(KEY_VIBRATE, vibrate)
+            .putBoolean(KEY_SOUND, sound)
+            .putString(KEY_SOUND_URI, soundUri)
+            .apply()
+    }
+
+    fun ringingState(context: Context): RingState? {
+        val prefs = context.getSharedPreferences(RING_PREFS, Context.MODE_PRIVATE)
+        if (!prefs.getBoolean(KEY_RINGING, false)) return null
+
+        // An alarm that has already shouted for [RING_MAX_MS] has given itself up,
+        // so the student gets a missed alarm rather than a permanently ringing phone.
+        val startedAt = prefs.getLong(KEY_STARTED_AT, 0L)
+        if (startedAt == 0L || System.currentTimeMillis() - startedAt > RING_MAX_MS) {
+            // Clearing the state is not enough: the ringing service has to be
+            // stopped too, or the alarm keeps shouting with nothing left tracking it.
+            AlarmService.stop(context)
+            return null
+        }
+        return RingState(
+            alarmId = prefs.getLong(KEY_ALARM_ID, 0L),
+            label = prefs.getString(KEY_LABEL, DEFAULT_ALARM_LABEL).orEmpty(),
+            vibrate = prefs.getBoolean(KEY_VIBRATE, true),
+            sound = prefs.getBoolean(KEY_SOUND, true),
+            soundUri = prefs.getString(KEY_SOUND_URI, null)
+        )
+    }
+
+    /**
+     * Stops the alarm for good.
+     *
+     * Called by both "Turn off" and "Snooze", so this is the single place that ends
+     * the watchdog loop. Nothing else may clear it, or the alarm could fall silent
+     * on its own.
+     */
+    fun clearRinging(context: Context) {
+        context.getSharedPreferences(RING_PREFS, Context.MODE_PRIVATE).edit()
+            .clear()
+            .apply()
+        val am = context.getSystemService(AlarmManager::class.java) ?: return
+        val pi = PendingIntent.getBroadcast(
+            context,
+            WATCHDOG_REQUEST,
+            Intent(context, DailyAlarmReceiver::class.java).apply { action = ACTION_WATCHDOG },
+            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+        )
+        if (pi != null) {
+            am.cancel(pi)
+            pi.cancel()
+        }
+    }
+
+    /** Restarts the ringing alarm and lines up the next watchdog. */
+    fun reinforce(context: Context, state: RingState, raiseScreen: Boolean = true) {
+        markRinging(
+            context, state.alarmId, state.label, state.vibrate, state.sound, state.soundUri
+        )
+        AlarmService.start(
+            context, state.alarmId, state.label, state.vibrate, state.sound, state.soundUri,
+            raiseScreen = raiseScreen
+        )
+        scheduleWatchdog(context)
+    }
+
+    private fun scheduleWatchdog(context: Context) {
+        val am = context.getSystemService(AlarmManager::class.java) ?: return
+        val pi = PendingIntent.getBroadcast(
+            context,
+            WATCHDOG_REQUEST,
+            Intent(context, DailyAlarmReceiver::class.java).apply { action = ACTION_WATCHDOG },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val triggerAt = System.currentTimeMillis() + WATCHDOG_INTERVAL_MS
+        if (canScheduleExact(context)) {
+            am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi)
+        } else {
+            am.set(AlarmManager.RTC_WAKEUP, triggerAt, pi)
+        }
     }
 
     /** Reads one alarm back out of Room, so a fired alarm can re-arm itself. */
@@ -124,6 +282,7 @@ object DailyAlarms {
             putExtra(EXTRA_LABEL, alarm.label)
             putExtra(EXTRA_VIBRATE, alarm.vibrate)
             putExtra(EXTRA_SOUND, alarm.sound)
+            putExtra(EXTRA_SOUND_URI, alarm.soundUri)
         }
         return PendingIntent.getBroadcast(
             context,
@@ -219,11 +378,13 @@ object DailyAlarms {
         val oldKeys = (prefs.getStringSet(KEYS, emptySet()) ?: emptySet()).toMutableSet()
         val keep = alarms.filter { it.enabled }.map { it.id.toString() }.toSet()
 
-        for (key in oldKeys) {
-            if (!keep.contains(key)) {
-                cancel(context, key.toLongOrNull() ?: 0L)
-                oldKeys.remove(key)
-            }
+        // remove() while iterating the same set throws ConcurrentModificationException,
+        // which crashed the app on every launch that re-armed alarms. Collect the
+        // dead keys first, then drop them.
+        val deadKeys = oldKeys.filter { !keep.contains(it) }
+        for (key in deadKeys) {
+            cancel(context, key.toLongOrNull() ?: 0L)
+            oldKeys.remove(key)
         }
         for (alarm in alarms) {
             schedule(context, alarm)
@@ -254,7 +415,14 @@ object DailyAlarms {
         prefs.edit().putStringSet(KEYS, keys).apply()
     }
 
-    fun showNotification(context: Context, alarmId: Long, label: String, vibrate: Boolean, sound: Boolean) {
+    fun showNotification(
+        context: Context,
+        alarmId: Long,
+        label: String,
+        vibrate: Boolean,
+        sound: Boolean,
+        soundUri: String? = null
+    ) {
         ensureChannel(context)
 
         // A wake-up alarm should be heard even in silent mode, so it goes to the
@@ -269,11 +437,29 @@ object DailyAlarms {
             )
         }
 
+        // Tapping the notification goes to the app, but the full-screen intent is
+        // what launches over the lock screen when the phone is face down or asleep.
         val open = PendingIntent.getActivity(
             context,
             alarmId.hashCode(),
             Intent(context, com.saintchigos.studyhub.MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val ring = PendingIntent.getActivity(
+            context,
+            alarmId.hashCode() xor RING_REQUEST,
+            Intent(context, AlarmRingActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_NO_USER_ACTION or
+                    Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
+                putExtra(EXTRA_ALARM_ID, alarmId)
+                putExtra(EXTRA_LABEL, label)
+                putExtra(EXTRA_VIBRATE, vibrate)
+                putExtra(EXTRA_SOUND, sound)
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -311,6 +497,7 @@ object DailyAlarms {
             .setAutoCancel(true)
             .setOnlyAlertOnce(true)
             .setContentIntent(open)
+            .setFullScreenIntent(ring, true)
             .setDefaults(0)
             .addAction(R.drawable.ic_notification, "Snooze $SNOOZE_MINUTES min", snooze)
             .addAction(R.drawable.ic_notification, "Dismiss", dismiss)

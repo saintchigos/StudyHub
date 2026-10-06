@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.EventBusy
+import androidx.compose.material.icons.filled.Grade
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LightMode
@@ -29,6 +30,7 @@ import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.SupportAgent
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -78,6 +80,8 @@ fun SettingsScreen(
     communityViewModel: CommunityViewModel,
     onOpenCommunity: () -> Unit = {},
     onOpenAccount: () -> Unit = {},
+    onOpenFocus: () -> Unit = {},
+    onOpenCourses: () -> Unit = {},
     onOpenLegal: (LegalKind) -> Unit = {}
 ) {
     val plans by viewModel.plans.collectAsStateWithLifecycle()
@@ -184,6 +188,28 @@ fun SettingsScreen(
                             onClick = { confirmSignOut = true }
                         )
                     }
+                }
+            }
+
+            // ---- study tools -----------------------------------------------
+            // Focus and Courses left the bottom bar so the five remaining tabs
+            // stay readable, so More is the second way into them.
+            item { SettingsGroupLabel("Study tools") }
+            item {
+                SettingsCard {
+                    SettingsRow(
+                        icon = Icons.Filled.Timer,
+                        title = "Focus timer and alarms",
+                        subtitle = "Study blocks, wake-up alarms, study log",
+                        onClick = onOpenFocus
+                    )
+                    SettingsDivider()
+                    SettingsRow(
+                        icon = Icons.Filled.Grade,
+                        title = "Courses",
+                        subtitle = "Modules, credits and class groups",
+                        onClick = onOpenCourses
+                    )
                 }
             }
 

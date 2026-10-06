@@ -1,6 +1,7 @@
 package com.saintchigos.studyhub.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,22 +14,28 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.saintchigos.studyhub.ui.StudyHubViewModel
+import com.saintchigos.studyhub.ui.components.AddExamDialog
 import com.saintchigos.studyhub.ui.components.CourseAvatar
 import com.saintchigos.studyhub.ui.components.CourseTag
 import com.saintchigos.studyhub.ui.components.EmptyState
@@ -38,10 +45,13 @@ import com.saintchigos.studyhub.ui.components.courseColor
 import com.saintchigos.studyhub.util.TimeUtil
 
 @Composable
-fun ExamsScreen(viewModel: StudyHubViewModel) {
+fun ExamsScreen(viewModel: StudyHubViewModel, openAddOnStart: Boolean = false) {
     val exams by viewModel.exams.collectAsStateWithLifecycle()
+    val courses by viewModel.courses.collectAsStateWithLifecycle()
+    var showAdd by remember { mutableStateOf(openAddOnStart) }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
         ScreenHeader(
             title = "Exams",
             subtitle = if (exams.isEmpty()) "Nothing scheduled"
@@ -150,5 +160,26 @@ fun ExamsScreen(viewModel: StudyHubViewModel) {
                 }
             }
         }
+        }
+
+        FloatingActionButton(
+            onClick = { showAdd = true },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
+        ) {
+            Icon(Icons.Filled.Add, contentDescription = "Add exam or test")
+        }
+    }
+
+    if (showAdd) {
+        AddExamDialog(
+            courses = courses,
+            onDismiss = { showAdd = false },
+            onSave = { courseId, title, startsAt, durationMinutes, room, notes ->
+                viewModel.addExam(courseId, title, startsAt, durationMinutes, room, notes)
+                showAdd = false
+            }
+        )
     }
 }
