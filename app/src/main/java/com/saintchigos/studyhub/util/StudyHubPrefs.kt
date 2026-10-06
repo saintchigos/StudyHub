@@ -93,6 +93,11 @@ class StudyHubPrefs(context: Context) {
         get() = prefs.getFloat(KEY_FONT_SCALE, 1f)
         set(value) = prefs.edit().putFloat(KEY_FONT_SCALE, value.coerceIn(0.85f, 1.5f)).apply()
 
+    /** Whether to keep a silent "what's next" notification on the lock screen. */
+    var nextClassNotification: Boolean
+        get() = prefs.getBoolean(KEY_NEXT_CLASS, true)
+        set(value) = prefs.edit().putBoolean(KEY_NEXT_CLASS, value).apply()
+
     private companion object {
         const val KEY_SETUP_COMPLETE = "setup_complete"
         const val KEY_FIRST_LEAD = "first_class_lead_minutes"
@@ -105,6 +110,7 @@ class StudyHubPrefs(context: Context) {
         const val KEY_DYNAMIC_COLOR = "dynamic_color"
         const val KEY_AMOLED = "amoled"
         const val KEY_FONT_SCALE = "font_scale"
+        const val KEY_NEXT_CLASS = "next_class_notification"
         const val KEY_LAST_ACTIVE_DAY = "last_active_day"
         const val KEY_STREAK_DAYS = "streak_days"
         const val KEY_SEEN_WELCOME = "seen_welcome"

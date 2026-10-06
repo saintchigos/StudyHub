@@ -77,6 +77,14 @@ import com.saintchigos.studyhub.ui.screens.SettingsScreen
 import com.saintchigos.studyhub.ui.screens.TimetableScreen
 import com.saintchigos.studyhub.ui.theme.StudyHubTheme
 import com.saintchigos.studyhub.util.TimeUtil
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import com.saintchigos.studyhub.data.StudyHubDatabase
+import com.saintchigos.studyhub.reminder.NextClass
 import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
@@ -89,7 +97,21 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         ClassAlarms.ensureChannel(this)
+        NextClass.ensureChannel(this)
         requestNotificationPermissionIfNeeded()
+
+        // The "what's next" card is a claim about the near future, so it is refreshed
+        // whenever the app is opened rather than only when the timetable is edited.
+        // A class can start while the phone sat in a pocket, and the card has to stop
+        // advertising it as the next thing to go to.
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                val sessions = withContext(Dispatchers.IO) {
+                    StudyHubDatabase.get(applicationContext).dao().getAllSessions()
+                }
+                NextClass.update(applicationContext, sessions)
+            }
+        }
 
         setContent {
             StudyHubApp()

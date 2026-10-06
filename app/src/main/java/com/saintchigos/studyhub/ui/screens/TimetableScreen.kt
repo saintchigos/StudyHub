@@ -17,13 +17,16 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,10 +54,25 @@ fun TimetableScreen(viewModel: StudyHubViewModel) {
 
     var editing by remember { mutableStateOf<SessionWithCourse?>(null) }
     var adding by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf<String?>(null) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
-            ScreenHeader(title = "Timetable", subtitle = "Tap a class to edit it")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                ScreenHeader(
+                    title = "Timetable",
+                    subtitle = "Tap a class to edit it",
+                    modifier = Modifier.weight(1f)
+                )
+                TextButton(onClick = { viewModel.shareTimetable { message = it } }) {
+                    Icon(Icons.Filled.Share, contentDescription = null)
+                    Spacer(Modifier.width(6.dp))
+                    Text("Share")
+                }
+            }
 
             Row(
                 modifier = Modifier
@@ -172,6 +190,17 @@ fun TimetableScreen(viewModel: StudyHubViewModel) {
             Spacer(Modifier.width(8.dp))
             Text("Add class")
         }
+    }
+
+    message?.let { text ->
+        AlertDialog(
+            onDismissRequest = { message = null },
+            title = { Text("Share your timetable") },
+            text = { Text(text) },
+            confirmButton = {
+                TextButton(onClick = { message = null }) { Text("Close") }
+            }
+        )
     }
 
     if (adding) {

@@ -46,6 +46,33 @@ object Sharing {
         }.getOrElse { "Could not prepare the catalogue file." }
     }
 
+/**
+ * Shares a block of text through the system sheet.
+ *
+ * Used for the timetable: WhatsApp, email and SMS all appear without the app
+ * knowing anything about them, and nothing is uploaded anywhere.
+ *
+ * Returns whether the sheet actually opened, so the caller can say so honestly
+ * rather than reporting success for something that silently did not happen.
+ */
+fun shareText(context: Context, subject: String, text: String): Boolean =
+    runCatching {
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, subject)
+            putExtra(Intent.EXTRA_TEXT, text)
+        }
+        context.startActivity(
+            Intent.createChooser(send, subject).apply {
+                // The ViewModel holds the application context, and startActivity from
+                // there needs its own task. Without this the call throws and the share
+                // silently does nothing at all.
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+        )
+        true
+    }.getOrElse { false }
+
     fun openWhatsApp(context: Context, text: String) {
         val encoded = Uri.encode(text)
         runCatching {

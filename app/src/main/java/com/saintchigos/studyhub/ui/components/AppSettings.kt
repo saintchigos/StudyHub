@@ -66,6 +66,7 @@ fun AppSettingsSection(
     val dynamicColor by viewModel.dynamicColor.collectAsStateWithLifecycle()
     val amoled by viewModel.amoled.collectAsStateWithLifecycle()
     val fontScale by viewModel.fontScale.collectAsStateWithLifecycle()
+    val nextClass by viewModel.nextClassNotification.collectAsStateWithLifecycle()
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Text("Appearance", style = MaterialTheme.typography.titleSmall)
@@ -177,6 +178,12 @@ fun AppSettingsSection(
                     detail = "Vibrate the phone so the alert is hard to miss",
                     checked = vibrate,
                     onCheckedChange = { viewModel.setReminderVibrate(it) }
+                )
+                ToggleRow(
+                    title = "Show what's next",
+                    detail = "A silent card on your lock screen with the next class and how long until it",
+                    checked = nextClass,
+                    onCheckedChange = { viewModel.setNextClassNotification(it) }
                 )
                 Spacer(Modifier.height(4.dp))
                 TextButton(onClick = { viewModel.sendTestReminder() }) {

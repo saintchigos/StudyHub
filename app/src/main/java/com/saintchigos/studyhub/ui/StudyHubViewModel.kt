@@ -18,7 +18,10 @@ import com.saintchigos.studyhub.data.ProgrammePlan
 import com.saintchigos.studyhub.data.SessionWithCourse
 import com.saintchigos.studyhub.data.StudyHubDatabase
 import com.saintchigos.studyhub.reminder.ClassAlarms
+import com.saintchigos.studyhub.reminder.NextClass
+import com.saintchigos.studyhub.domain.TimetableText
 import com.saintchigos.studyhub.ui.theme.Accent
+import com.saintchigos.studyhub.util.Sharing
 import com.saintchigos.studyhub.util.StudyHubPrefs
 import com.saintchigos.studyhub.util.TimeUtil
 import kotlinx.coroutines.Dispatchers
@@ -233,10 +236,88 @@ class StudyHubViewModel(app: Application) : AndroidViewModel(app) {
         ClassAlarms.showTestNotification(getApplication())
     }
 
-    /** Rebuilds every alarm from the current timetable, for example after a settings change. */
-    private fun rescheduleNow() {
+    /**
+ * Rebuilds every alarm from the current timetable, for example after a settings change.
+ *
+ * The "what's next" notification rides along here rather than having its own timer,
+ * because the same edit is the only thing that can invalidate it. A separate poll
+ * would wake the radio for no new information.
+ */
+private fun rescheduleNow() {
         viewModelScope.launch(Dispatchers.IO) {
-            ClassAlarms.reschedule(getApplication(), dao.getAllSessions())
+            val sessions = dao.getAllSessions()
+            ClassAlarms.reschedule(getApplication(), sessions)
+            refreshNextClass(sessions)
+        }
+    }
+
+    /**
+     * Reposts or clears the silent "what's next" card, honouring the student's switch.
+     *
+     * Public because the card also has to catch up on resume: a timetable can go
+     * stale overnight, or a class can start while the app sits in the background.
+     */
+    fun refreshNextClass(sessions: List<com.saintchigos.studyhub.data.SessionWithCourse> = allSessions.value) {
+        val app = getApplication<android.app.Application>()
+        if (prefs.nextClassNotification) {
+            NextClass.update(app, sessions)
+        } else {
+            NextClass.cancel(app)
+        }
+    }
+
+    fun setNextClassNotification(enabled: Boolean) {
+        prefs.nextClassNotification = enabled
+        _nextClassNotification.value = enabled
+        viewModelScope.launch(Dispatchers.IO) { refreshNextClass() }
+    }
+
+    private val _nextClassNotification = MutableStateFlow(prefs.nextClassNotification)
+    val nextClassNotification: StateFlow<Boolean> = _nextClassNotification.asStateFlow()
+
+/**
+ * The programme the student is in, for labelling shared exports.
+ *
+ * Null when no plan has been applied, so the caller can leave the heading off rather
+ * than printing an empty one.
+ */
+private fun currentProgrammeName(): String? {
+        val plan = plans.value.firstOrNull { it.applied } ?: return null
+        return "${plan.programmeName}, Year ${plan.year}, Semester ${plan.semester}"
+    }
+
+    /**
+     * Builds the plain text timetable and hands it to the system share sheet.
+ *
+ * Done in the ViewModel so the screen stays free of formatting, and so the message can
+ * be produced from the same data the timetable screen is already holding rather than
+ * a second read.
+ */
+fun shareTimetable(onReady: (String) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val sessions = dao.getAllSessions()
+            val entries = sessions.map {
+                TimetableText.Entry(
+                    courseName = it.courseName,
+                    courseCode = it.courseCode,
+                    dayOfWeek = it.dayOfWeek,
+                    startMinute = it.startMinute,
+                    endMinute = it.endMinute,
+                    room = it.room
+                )
+            }
+            val programme = currentProgrammeName()
+            val text = TimetableText.format(entries, programme)
+            val shared = withContext(Dispatchers.Main) {
+                Sharing.shareText(getApplication(), "My timetable", text)
+            }
+            onReady(
+                when {
+                    entries.isEmpty() -> "Nothing scheduled yet, so there was nothing to share."
+                    !shared -> "Could not open the share sheet on this phone."
+                    else -> "Timetable ready to share."
+                }
+            )
         }
     }
 
