@@ -22,11 +22,11 @@ object InboxLog {
     /** Keeps the inbox to a recent, glanceable window on a low-end phone. */
     private const val KEEP = 200
 
-    fun record(context: Context, kind: String, title: String, body: String) {
+    fun record(context: Context, kind: String, title: String, body: String): Thread {
         val appContext = context.applicationContext
         // A BroadcastReceiver has no coroutine scope, and this must not delay the
         // notification it is called alongside, so the write goes on its own thread.
-        Thread {
+        val worker = Thread {
             runBlocking {
                 try {
                     val dao = StudyHubDatabase.get(appContext).dao()
@@ -45,7 +45,9 @@ object InboxLog {
                     Log.w(TAG, "Could not file reminder in the inbox", t)
                 }
             }
-        }.start()
+        }
+        worker.start()
+        return worker
     }
 
     /**

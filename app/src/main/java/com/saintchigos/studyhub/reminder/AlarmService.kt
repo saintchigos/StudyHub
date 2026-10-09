@@ -105,6 +105,9 @@ class AlarmService : Service() {
         when (intent?.action) {
             ACTION_STOP -> {
                 dismissGlobally()
+                // The notification's Turn off button lands here, not in stop(). Without
+                // clearing the watchdog the alarm came back within thirty seconds.
+                DailyAlarms.clearRinging(this)
                 stopEverything()
                 stopSelf()
                 return START_NOT_STICKY
@@ -118,6 +121,7 @@ class AlarmService : Service() {
                     intent.getBooleanExtra(DailyAlarms.EXTRA_VIBRATE, vibrate)
                 val snoozeSound = intent.getBooleanExtra(DailyAlarms.EXTRA_SOUND, sound)
                 val snoozeUri = intent.getStringExtra(EXTRA_SOUND_URI)
+                DailyAlarms.clearRinging(this)
                 stopEverything()
                 stopSelf()
                 DailyAlarms.snooze(

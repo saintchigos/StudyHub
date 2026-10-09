@@ -18,6 +18,8 @@ import com.saintchigos.studyhub.data.ProgrammePlan
 import com.saintchigos.studyhub.data.SessionWithCourse
 import com.saintchigos.studyhub.data.StudyHubDatabase
 import com.saintchigos.studyhub.reminder.ClassAlarms
+import com.saintchigos.studyhub.reminder.DeadlineAlarms
+import com.saintchigos.studyhub.reminder.ReminderHub
 import com.saintchigos.studyhub.reminder.NextClass
 import com.saintchigos.studyhub.domain.TimetableText
 import com.saintchigos.studyhub.ui.theme.Accent
@@ -30,6 +32,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -87,6 +90,25 @@ class StudyHubViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * Re-arms deadline reminders whenever a task or exam is added, edited, ticked off
+     * or deleted, so a finished task never nags and a new one is covered straight away.
+     */
+    private val deadlineWatcher: Job = viewModelScope.launch(Dispatchers.IO) {
+        combine(
+            dao.observeAssignments(),
+            dao.observeUpcomingExams(System.currentTimeMillis())
+        ) { tasks, upcoming -> DeadlineInputs(tasks, upcoming) }
+            .collect { inputs ->
+                DeadlineAlarms.reschedule(
+                    getApplication(),
+                    inputs.tasks.filter { !it.isDone },
+                    inputs.exams
+                )
+                DeadlineAlarms.scheduleBriefing(getApplication())
+            }
+    }
+
     val exams: StateFlow<List<ExamWithCourse>> =
         dao.observeUpcomingExams(TimeUtil.toEpochMillis(TimeUtil.now()))
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -131,6 +153,23 @@ class StudyHubViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _fontScale = MutableStateFlow(prefs.fontScale)
     val fontScale: StateFlow<Float> = _fontScale.asStateFlow()
+
+    private val _deadlineReminders = MutableStateFlow(prefs.deadlineReminders)
+    val deadlineReminders: StateFlow<Boolean> = _deadlineReminders.asStateFlow()
+
+    private val _morningBriefing = MutableStateFlow(prefs.morningBriefing)
+    val morningBriefing: StateFlow<Boolean> = _morningBriefing.asStateFlow()
+
+    fun setDeadlineReminders(enabled: Boolean) {
+        prefs.deadlineReminders = enabled
+        _deadlineReminders.value = enabled
+        viewModelScope.launch(Dispatchers.IO) { ReminderHub.rearm(getApplication()) }
+    }
+
+    fun setMorningBriefing(enabled: Boolean) {
+        prefs.morningBriefing = enabled
+        _morningBriefing.value = enabled
+    }
 
     private val _termsAccepted = MutableStateFlow(prefs.termsAccepted)
     val termsAccepted: StateFlow<Boolean> = _termsAccepted.asStateFlow()
@@ -622,3 +661,9 @@ fun shareTimetable(onReady: (String) -> Unit) {
         viewModelScope.launch { dao.deleteExam(id) }
     }
 }
+
+/** What the deadline watcher needs from the database, kept as one value so it re-arms once per change. */
+private data class DeadlineInputs(
+    val tasks: List<AssignmentWithCourse>,
+    val exams: List<ExamWithCourse>
+)

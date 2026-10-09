@@ -74,7 +74,9 @@ class DailyAlarmReceiver : BroadcastReceiver() {
             context,
             DailyAlarms.RingState(id, label, vibrate, sound, soundUri)
         )
-        if (snoozed) return
+        // A snoozed fire also re-arms. It is harmless when the repeating alarm is
+        // already armed, and it repairs the case where an older build let a snooze
+        // overwrite tomorrow's alarm.
 
         // Re-arming is one short query, and a BroadcastReceiver has no coroutine
         // scope, so it runs on a worker thread rather than the main thread.

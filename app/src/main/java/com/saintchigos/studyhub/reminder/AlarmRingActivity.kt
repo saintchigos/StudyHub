@@ -1,8 +1,8 @@
 package com.saintchigos.studyhub.reminder
 
-import android.app.KeyguardManager
 import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -50,7 +50,6 @@ class AlarmRingActivity : ComponentActivity() {
         // Wake the display and ask the keyguard to step aside, so the student sees
         // the alarm instead of only feeling a vibration in their pocket.
         showOverLockScreen()
-        setTurnScreenOn(true)
 
         val label = intent?.getStringExtra(DailyAlarms.EXTRA_LABEL).orEmpty()
         val alarmId = intent?.getLongExtra(DailyAlarms.EXTRA_ALARM_ID, 0L) ?: 0L
@@ -75,7 +74,8 @@ class AlarmRingActivity : ComponentActivity() {
                             alarmId,
                             label,
                             intent?.getBooleanExtra(DailyAlarms.EXTRA_VIBRATE, true) ?: true,
-                            intent?.getBooleanExtra(DailyAlarms.EXTRA_SOUND, true) ?: true
+                            intent?.getBooleanExtra(DailyAlarms.EXTRA_SOUND, true) ?: true,
+                            intent?.getStringExtra(DailyAlarms.EXTRA_SOUND_URI)
                         )
                         DailyAlarms.dismiss(applicationContext, alarmId)
                         finishAndRemoveTask()
@@ -86,12 +86,31 @@ class AlarmRingActivity : ComponentActivity() {
     }
 
     private fun showOverLockScreen() {
+        // Deliberately does not call requestDismissKeyguard. On a phone with a PIN or
+        // pattern that raises the unlock prompt on top of the alarm, so the student
+        // saw a lock screen instead of Turn off and Snooze. Showing over the keyguard
+        // is all an alarm needs; the buttons work without unlocking.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-            getSystemService(KeyguardManager::class.java)?.requestDismissKeyguard(this, null)
-            // Show over the keyguard from code as well as in the manifest, so the
-            // alarm is visible even when Android refuses the full-screen intent.
             setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        } else {
+            @Suppress("DEPRECATION")
+            window.addFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+            )
         }
+        window.addFlags(
+            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+                WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON
+        )
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        // A second alarm while this screen is up should not leave buttons that act on
+        // the first one.
+        setIntent(intent)
     }
 }
 

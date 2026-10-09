@@ -15,12 +15,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -39,6 +41,7 @@ import com.saintchigos.studyhub.ui.components.AddExamDialog
 import com.saintchigos.studyhub.ui.components.CourseAvatar
 import com.saintchigos.studyhub.ui.components.CourseTag
 import com.saintchigos.studyhub.ui.components.EmptyState
+import com.saintchigos.studyhub.ui.components.GradeCalculatorDialog
 import com.saintchigos.studyhub.ui.components.ScreenHeader
 import com.saintchigos.studyhub.ui.components.SectionHeader
 import com.saintchigos.studyhub.ui.components.courseColor
@@ -50,13 +53,19 @@ fun ExamsScreen(viewModel: StudyHubViewModel, openAddOnStart: Boolean = false) {
     val courses by viewModel.courses.collectAsStateWithLifecycle()
     val allSessions by viewModel.allSessions.collectAsStateWithLifecycle()
     var showAdd by remember { mutableStateOf(openAddOnStart) }
+    var showCalculator by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
         ScreenHeader(
             title = "Exams",
             subtitle = if (exams.isEmpty()) "Nothing scheduled"
-            else "${exams.size} upcoming assessment${if (exams.size == 1) "" else "s"}"
+            else "${exams.size} upcoming assessment${if (exams.size == 1) "" else "s"}",
+            trailing = {
+                IconButton(onClick = { showCalculator = true }) {
+                    Icon(Icons.Filled.Calculate, contentDescription = "What do I need in the exam?")
+                }
+            }
         )
 
         if (exams.isEmpty()) {
@@ -171,6 +180,10 @@ fun ExamsScreen(viewModel: StudyHubViewModel, openAddOnStart: Boolean = false) {
         ) {
             Icon(Icons.Filled.Add, contentDescription = "Add exam or test")
         }
+    }
+
+    if (showCalculator) {
+        GradeCalculatorDialog(onDismiss = { showCalculator = false })
     }
 
     if (showAdd) {

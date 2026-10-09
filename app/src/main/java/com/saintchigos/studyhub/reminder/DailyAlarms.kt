@@ -56,6 +56,11 @@ const val DEFAULT_ALARM_LABEL = "Wake up Mr Chigos"
     private const val SNOOZE_REQUEST = 0x50
     private const val DISMISS_REQUEST = 0x51
     private const val RING_REQUEST = 0x52
+    private const val SNOOZE_FIRE_REQUEST = 0x54
+    private const val SHOW_REQUEST = 0x55
+
+    /** Id used by [scheduleTest]; never a real row, so nothing tries to re-arm it. */
+    const val TEST_ALARM_ID = 987_654_321L
 
     /** Shows the alarm again in [SNOOZE_MINUTES] minutes without touching its schedule. */
     fun snooze(
@@ -78,18 +83,70 @@ const val DEFAULT_ALARM_LABEL = "Wake up Mr Chigos"
             // than by the next weekday, which would skip today's alarm entirely.
             putExtra(EXTRA_SNOOZED, true)
         }
+        // A request code of its own. This used to share the code of the repeating
+        // alarm, and AlarmManager treats equal PendingIntents as the same alarm, so
+        // snoozing silently replaced tomorrow's alarm and it never rang again.
         val pi = PendingIntent.getBroadcast(
             context,
-            alarmId.hashCode(),
+            alarmId.hashCode() xor SNOOZE_FIRE_REQUEST,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val triggerAt = System.currentTimeMillis() + SNOOZE_MINUTES * 60_000L
-        if (canScheduleExact(context)) {
-            am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi)
-        } else {
-            am.set(AlarmManager.RTC_WAKEUP, triggerAt, pi)
+        setWake(context, am, triggerAt, pi)
+    }
+
+    /**
+     * Fires a real test alarm a few seconds from now.
+     *
+     * Lets a student lock the phone and check the whole path, ringtone, lock-screen
+     * takeover and buttons, instead of finding out at 06:00 that something is blocked.
+     */
+    fun scheduleTest(context: Context, delaySeconds: Int = 15) {
+        val am = context.getSystemService(AlarmManager::class.java) ?: return
+        val intent = Intent(context, DailyAlarmReceiver::class.java).apply {
+            action = ACTION
+            putExtra(EXTRA_ALARM_ID, TEST_ALARM_ID)
+            putExtra(EXTRA_LABEL, "Test alarm")
+            putExtra(EXTRA_VIBRATE, true)
+            putExtra(EXTRA_SOUND, true)
+            putExtra(EXTRA_SNOOZED, true)
         }
+        val pi = PendingIntent.getBroadcast(
+            context,
+            TEST_ALARM_ID.hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        setWake(context, am, System.currentTimeMillis() + delaySeconds * 1000L, pi)
+    }
+
+    /**
+     * Sets one wake-up trigger as reliably as this phone allows.
+     *
+     * `setAlarmClock` is the strongest tool Android offers: it is exempt from Doze and
+     * battery restrictions, it is allowed to start the ringing service from the
+     * background, and it shows the alarm icon in the status bar. Plain exact alarms
+     * are throttled and are the first thing aggressive OEM power managers defer.
+     */
+    private fun setWake(context: Context, am: AlarmManager, triggerAt: Long, pi: PendingIntent) {
+        if (canScheduleExact(context)) {
+            val show = PendingIntent.getActivity(
+                context,
+                SHOW_REQUEST,
+                Intent(context, com.saintchigos.studyhub.MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                },
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val ok = runCatching {
+                am.setAlarmClock(AlarmManager.AlarmClockInfo(triggerAt, show), pi)
+            }.isSuccess
+            if (ok) return
+        }
+        // Not allowed to be exact: a late wake-up still beats none, and the
+        // while-idle variant at least survives Doze.
+        am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi)
     }
 
     fun dismiss(context: Context, alarmId: Long) {
@@ -232,7 +289,7 @@ const val DEFAULT_ALARM_LABEL = "Wake up Mr Chigos"
         if (canScheduleExact(context)) {
             am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi)
         } else {
-            am.set(AlarmManager.RTC_WAKEUP, triggerAt, pi)
+            am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi)
         }
     }
 
@@ -339,18 +396,7 @@ const val DEFAULT_ALARM_LABEL = "Wake up Mr Chigos"
         // No days ticked means the alarm can never ring, so nothing is scheduled.
         val triggerAt = nextTriggerAt(alarm) ?: return
 
-        val pi = pendingIntent(context, alarm)
-        if (canScheduleExact(context)) {
-            am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi)
-        } else {
-            // A late wake-up helps; a missed one does not.
-            am.setWindow(
-                AlarmManager.RTC_WAKEUP,
-                triggerAt,
-                5 * 60 * 1000L,
-                pi
-            )
-        }
+        setWake(context, am, triggerAt, pendingIntent(context, alarm))
         trackKey(context, alarm.id.toString())
     }
 

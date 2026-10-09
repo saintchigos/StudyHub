@@ -56,6 +56,7 @@ import com.saintchigos.studyhub.ui.components.AppSettingsSection
 import com.saintchigos.studyhub.ui.components.HowItWorks
 import com.saintchigos.studyhub.ui.components.InitialAvatar
 import com.saintchigos.studyhub.ui.components.NotificationSettings
+import com.saintchigos.studyhub.ui.components.ReminderHealthCard
 import com.saintchigos.studyhub.ui.components.ProgrammePlanCard
 import com.saintchigos.studyhub.ui.components.ScreenHeader
 import com.saintchigos.studyhub.ui.components.SettingsCard
@@ -287,9 +288,8 @@ fun SettingsScreen(
 
             // ---- reminders --------------------------------------------------
             item { SettingsGroupLabel("Reminders") }
-            item {
-                SettingsCard { NotificationSettings() }
-            }
+            item { SettingsCard { NotificationSettings() } }
+            item { SettingsCard { ReminderHealthCard() } }
 
             // ---- appearance -------------------------------------------------
             item { SettingsGroupLabel("Appearance") }

@@ -105,6 +105,7 @@ class MainActivity : ComponentActivity() {
 
         ClassAlarms.ensureChannel(this)
         NextClass.ensureChannel(this)
+        com.saintchigos.studyhub.reminder.DeadlineAlarms.ensureChannel(this)
         requestNotificationPermissionIfNeeded()
 
         // The "what's next" card is a claim about the near future, so it is refreshed

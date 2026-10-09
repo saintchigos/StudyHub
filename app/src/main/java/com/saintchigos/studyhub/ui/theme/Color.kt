@@ -23,13 +23,17 @@ val OnErrorContainer = Color(0xFF410002)
 val SuccessGreen = Color(0xFF2E7D32)
 val WarningAmber = Color(0xFFF9A825)
 
+/**
+ * Course colours. Each one is dark enough for white text on it (4.5:1 or better), because
+ * exam badges and avatars put white lettering straight on the colour.
+ */
 val CoursePalette = listOf(
-    Color(0xFF1B5E9E),
-    Color(0xFF146B5C),
-    Color(0xFF7B3F00),
-    Color(0xFF6A3D9A),
-    Color(0xFFA3003B),
-    Color(0xFF2B5D9E),
-    Color(0xFF4F6B1E),
-    Color(0xFF9A2C2C),
+    Color(0xFF2563EB), // blue
+    Color(0xFF0F766E), // teal
+    Color(0xFFB45309), // amber
+    Color(0xFF7C3AED), // violet
+    Color(0xFFBE123C), // rose
+    Color(0xFF4338CA), // indigo
+    Color(0xFF15803D), // green
+    Color(0xFFC2410C), // orange
 )

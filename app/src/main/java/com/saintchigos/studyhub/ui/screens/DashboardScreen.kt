@@ -61,6 +61,9 @@ import com.saintchigos.studyhub.ui.StudyHubViewModel
 import com.saintchigos.studyhub.ui.components.CourseAvatar
 import com.saintchigos.studyhub.ui.components.CourseTag
 import com.saintchigos.studyhub.ui.components.EmptyState
+import com.saintchigos.studyhub.ui.components.HomeHero
+import com.saintchigos.studyhub.ui.components.greetingFor
+import com.saintchigos.studyhub.reminder.NextClass
 import com.saintchigos.studyhub.ui.components.NotificationBell
 import com.saintchigos.studyhub.ui.components.NotificationInbox
 import com.saintchigos.studyhub.ui.components.SectionHeader
@@ -92,6 +95,17 @@ fun DashboardScreen(
     val exams by viewModel.exams.collectAsStateWithLifecycle()
 
     var tick by remember { mutableLongStateOf(TimeUtil.toEpochMillis(TimeUtil.now())) }
+    // The clock used to be read once, so "overdue" and the hero's next-up line went
+    // stale until something else made Home recompose.
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(60_000)
+            tick = TimeUtil.toEpochMillis(TimeUtil.now())
+        }
+    }
+    val allSessions by viewModel.allSessions.collectAsStateWithLifecycle()
+    val nextClass = remember(allSessions, tick) { NextClass.nextSession(allSessions) }
+    val nextExam = exams.firstOrNull { it.startsAt >= tick }
     val sessions by viewModel.sessionsForSelectedDay.collectAsStateWithLifecycle()
 
     val open = assignments.filter { !it.isDone }
@@ -116,10 +130,25 @@ fun DashboardScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            ScreenHeader(
-                title = TimeUtil.now()
+            var nextLine: String? = null
+            var nextDetail: String? = null
+            if (nextClass != null) {
+                val session = nextClass.first
+                val room = if (session.room.isNotBlank()) "  ·  ${session.room}" else ""
+                nextLine = "Next: ${session.courseCode.ifBlank { session.courseName }} " +
+                    TimeUtil.relativeLabel(tick + nextClass.second * 60_000L)
+                nextDetail = "${session.courseName}$room"
+            } else if (nextExam != null) {
+                nextLine = "Next exam: ${nextExam.courseCode.ifBlank { nextExam.courseName }} " +
+                    TimeUtil.relativeLabel(nextExam.startsAt)
+                nextDetail = nextExam.title
+            }
+            HomeHero(
+                greeting = greetingFor(TimeUtil.now().hour),
+                date = TimeUtil.now()
                     .format(java.time.format.DateTimeFormatter.ofPattern("EEEE d MMMM")),
-                subtitle = "Your day at a glance",
+                nextLine = nextLine,
+                nextDetail = nextDetail,
                 trailing = {
                     NotificationBell(
                         unreadCount = unreadCount,

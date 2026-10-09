@@ -67,6 +67,8 @@ fun AppSettingsSection(
     val amoled by viewModel.amoled.collectAsStateWithLifecycle()
     val fontScale by viewModel.fontScale.collectAsStateWithLifecycle()
     val nextClass by viewModel.nextClassNotification.collectAsStateWithLifecycle()
+    val deadlines by viewModel.deadlineReminders.collectAsStateWithLifecycle()
+    val briefing by viewModel.morningBriefing.collectAsStateWithLifecycle()
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Text("Appearance", style = MaterialTheme.typography.titleSmall)
@@ -178,6 +180,18 @@ fun AppSettingsSection(
                     detail = "Vibrate the phone so the alert is hard to miss",
                     checked = vibrate,
                     onCheckedChange = { viewModel.setReminderVibrate(it) }
+                )
+                ToggleRow(
+                    title = "Task and exam reminders",
+                    detail = "A warning a day ahead and a few hours before something is due",
+                    checked = deadlines,
+                    onCheckedChange = { viewModel.setDeadlineReminders(it) }
+                )
+                ToggleRow(
+                    title = "Morning briefing",
+                    detail = "A short summary of your day at 7:00, only on days with something in them",
+                    checked = briefing,
+                    onCheckedChange = { viewModel.setMorningBriefing(it) }
                 )
                 ToggleRow(
                     title = "Show what's next",

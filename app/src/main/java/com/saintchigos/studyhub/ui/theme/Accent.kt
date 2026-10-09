@@ -33,7 +33,16 @@ enum class Accent(
     BERRY("Berry", Color(0xFFA3003B)),
 
     /** Near neutral slate. Lowest chroma, so it disturbs the least content. */
-    GRAPHITE("Graphite", Color(0xFF3F5F7A));
+    GRAPHITE("Graphite", Color(0xFF3F5F7A)),
+
+    /** A clear teal-cyan, fresh without being as common as blue. */
+    LAGOON("Lagoon", Color(0xFF0E7C86)),
+
+    /** Deep indigo, the most "night study" of the set. */
+    INDIGO("Indigo", Color(0xFF3949AB)),
+
+    /** Dry-grass gold, warm and distinct from Sunset's orange. */
+    SAVANNA("Savanna", Color(0xFF9A6700));
 
     companion object {
         val DEFAULT = OCEAN

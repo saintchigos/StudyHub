@@ -75,7 +75,7 @@ class StudyHubPrefs(context: Context) {
 
     /** Whether the wallpaper's colours should win over the chosen accent. */
     var dynamicColor: Boolean
-        get() = prefs.getBoolean(KEY_DYNAMIC_COLOR, true)
+        get() = prefs.getBoolean(KEY_DYNAMIC_COLOR, false)
         set(value) = prefs.edit().putBoolean(KEY_DYNAMIC_COLOR, value).apply()
 
     /** True black backgrounds in dark mode, which saves power on OLED screens. */
@@ -98,7 +98,19 @@ class StudyHubPrefs(context: Context) {
         get() = prefs.getBoolean(KEY_NEXT_CLASS, true)
         set(value) = prefs.edit().putBoolean(KEY_NEXT_CLASS, value).apply()
 
+    /** Warn a day and a few hours before a task or exam is due. */
+    var deadlineReminders: Boolean
+        get() = prefs.getBoolean(KEY_DEADLINES, true)
+        set(value) = prefs.edit().putBoolean(KEY_DEADLINES, value).apply()
+
+    /** A short summary of the day at 07:00, only on days that have something in them. */
+    var morningBriefing: Boolean
+        get() = prefs.getBoolean(KEY_BRIEFING, true)
+        set(value) = prefs.edit().putBoolean(KEY_BRIEFING, value).apply()
+
     private companion object {
+        const val KEY_DEADLINES = "deadline_reminders"
+        const val KEY_BRIEFING = "morning_briefing"
         const val KEY_SETUP_COMPLETE = "setup_complete"
         const val KEY_FIRST_LEAD = "first_class_lead_minutes"
         const val KEY_OTHER_LEAD = "other_class_lead_minutes"

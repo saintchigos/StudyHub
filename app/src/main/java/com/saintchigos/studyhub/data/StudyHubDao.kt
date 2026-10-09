@@ -130,6 +130,36 @@ interface StudyHubDao {
     )
     suspend fun getAllSessions(): List<SessionWithCourse>
 
+    /** Every unfinished task, overdue ones included, for arming deadline reminders and the briefing. */
+    @Query(
+        """
+        SELECT a.id AS id, a.title AS title, a.dueAt AS dueAt, a.isDone AS isDone,
+               a.priority AS priority, c.name AS courseName, c.code AS courseCode,
+               c.colorIndex AS colorIndex
+        FROM assignments a
+        INNER JOIN courses c ON c.id = a.courseId
+        WHERE a.isDone = 0
+        ORDER BY a.dueAt
+        LIMIT 200
+        """
+    )
+    suspend fun getOpenAssignments(): List<AssignmentWithCourse>
+
+    /** Exams starting at or after [now], as a one-off read for the same purpose. */
+    @Query(
+        """
+        SELECT e.id AS id, e.title AS title, e.startsAt AS startsAt,
+               e.durationMinutes AS durationMinutes, e.room AS room, e.notes AS notes,
+               c.name AS courseName, c.code AS courseCode, c.colorIndex AS colorIndex
+        FROM exams e
+        INNER JOIN courses c ON c.id = e.courseId
+        WHERE e.startsAt >= :now
+        ORDER BY e.startsAt
+        LIMIT 100
+        """
+    )
+    suspend fun getExamsFrom(now: Long): List<ExamWithCourse>
+
     @Query("SELECT COUNT(*) FROM assignments WHERE isDone = 0 AND dueAt < :now")
     fun observeOverdueCount(now: Long): Flow<Int>
 

@@ -14,6 +14,10 @@ Powered by **Chigos Media**.
 - **Assignments** - tick off work as you finish it; grouped by deadline with overdue highlighting and priority.
 - **Exams** - countdown badges, start time, duration, venue and revision notes.
 - **Courses** - add and remove courses, then attach classes, assignments and exams to them.
+- **Grade calculator** - the calculator icon on the Exams screen answers "what do I need in the
+  exam to reach 50?" from three numbers.
+- **Morning briefing** - a short 7:00 summary (classes, tasks due, exam countdown), posted only on
+  days that have something in them.
 
 ### Programmes and start-up setup
 
@@ -50,9 +54,16 @@ Reachable from the **Settings** tab in the bottom navigation.
 
 - 10 minutes before the **first class of the day**, and 5 minutes before every other class.
   Both lead times are adjustable in Settings.
-- A high-importance heads-up notification with sound and vibration, plus an in-app banner.
-- Alarms are scheduled seven days ahead and re-armed whenever the timetable changes, on
-  reboot, and after an app update.
+- **Task and exam reminders**: a day ahead and a few hours before (3 h for tasks, 2 h for exams).
+- A high-importance heads-up notification, plus an in-app banner. The Alert sound and
+  Vibration switches work on every Android version (each combination is its own channel).
+- Alarms are scheduled a week ahead and **renew themselves**: every reminder that fires, and a
+  daily 7:00 tick, rebuilds the schedule, so it keeps going even if the app is never opened.
+  They are also re-armed on reboot, app update, clock or time zone change, and when the
+  exact-alarm permission is granted.
+- **Alarm and reminder health** (Settings > Reminders) lists everything Android can block, with a
+  Fix button for each, and a **15-second test alarm** so you can lock the phone and check the
+  whole path.
 - If Android will not allow exact alarms, reminders fall back to a short window instead of
   being dropped.
 
@@ -74,6 +85,12 @@ The local `local.properties` file points at your SDK and is not tracked by git.
 .\gradlew.bat assembleDebug
 ```
 
+### Build on GitHub (no Android Studio needed)
+
+Pushing to GitHub runs `.github/workflows/build-apk.yml`, which runs the unit tests and builds
+the debug APK. Open the run under the **Actions** tab and download **StudyHub-debug-apk** from
+the Artifacts section.
+
 The debug APK lands at `app\build\outputs\apk\debug\app-debug.apk`.
 
 ## Install on a connected device
@@ -93,7 +110,9 @@ app/src/main/java/com/saintchigos/studyhub/
     PlanCatalogue.kt           timetable templates shipped with the app
     StudyHubDao.kt             all database queries
     StudyHubDatabase.kt        database, migration and plan apply/remove logic
-  reminder/                    reminder rules, alarms, receivers
+  reminder/                    reminder rules, class/wake-up/deadline alarms, receivers,
+                               ReminderHub (rebuilds every schedule from Room)
+  domain/                      timetable text, clash detection, grade calculator
   ui/
     StudyHubViewModel.kt       state holder
     components/                reusable composables and settings pieces

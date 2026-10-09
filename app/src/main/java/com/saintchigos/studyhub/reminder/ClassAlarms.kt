@@ -21,7 +21,19 @@ import com.saintchigos.studyhub.util.TimeUtil
 
 object ClassAlarms {
 
-    const val CHANNEL_ID = "class_reminders_v1"
+    /** Retired. Its sound and vibration were frozen at creation, so the settings did nothing. */
+    private const val LEGACY_CHANNEL_ID = "class_reminders_v1"
+
+    /**
+     * One channel per sound/vibration combination.
+     *
+     * From Android 8 the channel, not the notification, decides the sound and the
+     * vibration, and a channel cannot be changed after it is created. So the Alert sound
+     * and Vibration switches in Settings only work if each combination is its own
+     * channel and the right one is picked when the reminder is posted.
+     */
+    fun channelId(sound: Boolean, vibrate: Boolean): String =
+        "class_reminders_v2_s${if (sound) 1 else 0}_v${if (vibrate) 1 else 0}"
     private const val PREFS = "class_alarms"
     private const val KEYS = "scheduled_keys"
 
@@ -35,30 +47,48 @@ object ClassAlarms {
 
     /** Loud, heads-up channel so the reminder is impossible to miss. */
     fun ensureChannel(context: Context) {
-        val manager = context.getSystemService(NotificationManager::class.java) ?: return
-        val existing = manager.getNotificationChannel(CHANNEL_ID)
-        if (existing != null) return
+        ensureChannel(context, StudyHubPrefs(context).reminderSound, StudyHubPrefs(context).reminderVibrate)
+    }
+
+    private fun ensureChannel(context: Context, sound: Boolean, vibrate: Boolean): String {
+        val id = channelId(sound, vibrate)
+        val manager = context.getSystemService(NotificationManager::class.java) ?: return id
+        // The old channel would otherwise sit in system settings next to the new ones.
+        if (manager.getNotificationChannel(LEGACY_CHANNEL_ID) != null) {
+            manager.deleteNotificationChannel(LEGACY_CHANNEL_ID)
+        }
+        if (manager.getNotificationChannel(id) != null) return id
 
         val channel = NotificationChannel(
-            CHANNEL_ID,
-            "Class reminders",
+            id,
+            "Class reminders" + when {
+                sound && vibrate -> ""
+                sound -> " (sound only)"
+                vibrate -> " (vibrate only)"
+                else -> " (silent)"
+            },
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
             description = "Warns you before a class starts"
-            enableVibration(true)
-            vibrationPattern = longArrayOf(0, 400, 200, 400, 200, 400)
+            enableVibration(vibrate)
+            if (vibrate) vibrationPattern = longArrayOf(0, 400, 200, 400, 200, 400)
             enableLights(true)
             setShowBadge(true)
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-            setSound(
-                RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION),
-                AudioAttributes.Builder()
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
-                    .build()
-            )
+            if (sound) {
+                setSound(
+                    RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION),
+                    AudioAttributes.Builder()
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
+                        .build()
+                )
+            } else {
+                setSound(null, null)
+            }
         }
         manager.createNotificationChannel(channel)
+        return id
     }
 
     fun canScheduleExact(context: Context): Boolean {
@@ -141,13 +171,9 @@ object ClassAlarms {
             if (exact) {
                 am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, r.triggerAtMillis, pi)
             } else {
-                // Degrade to a short inexact window rather than dropping reminders entirely.
-                am.setWindow(
-                    AlarmManager.RTC_WAKEUP,
-                    r.triggerAtMillis,
-                    2 * 60 * 1000L,
-                    pi
-                )
+                // Degrade to an inexact alarm rather than dropping reminders entirely.
+                // The while-idle variant, because a plain window is deferred by Doze.
+                am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, r.triggerAtMillis, pi)
             }
         }
 
@@ -168,10 +194,9 @@ object ClassAlarms {
         room: String,
         whenLabel: String,
         leadMinutes: Int
-    ) {
-        ensureChannel(context)
-
+    ): Thread? {
         val settings = StudyHubPrefs(context)
+        val channelId = ensureChannel(context, settings.reminderSound, settings.reminderVibrate)
 
         val title = if (leadMinutes > 0)
             "$courseCode starts in $leadMinutes min"
@@ -193,10 +218,10 @@ object ClassAlarms {
         // reminder still reaches the student when the system has notifications
         // blocked, and when they swiped the shade entry away without reading it.
         // The point of the inbox is catching the ones that never got through.
-        InboxLog.record(context, NotificationLog.KIND_CLASS, title, body)
+        val inbox = InboxLog.record(context, NotificationLog.KIND_CLASS, title, body)
 
         val manager = NotificationManagerCompat.from(context)
-        if (!manager.areNotificationsEnabled()) return
+        if (!manager.areNotificationsEnabled()) return inbox
 
         val open = PendingIntent.getActivity(
             context,
@@ -207,7 +232,7 @@ object ClassAlarms {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+        val builder = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(body)
@@ -229,10 +254,11 @@ object ClassAlarms {
         val notification = builder.build()
 
         try {
-            manager.notify(courseCode.hashCode(), notification)
+            manager.notify((courseCode + whenLabel).hashCode(), notification)
         } catch (_: SecurityException) {
             // POST_NOTIFICATIONS not granted; the in-app inbox already has it.
         }
+        return inbox
     }
 
     /** Posts a sample reminder so a student can confirm alerts reach them. */
