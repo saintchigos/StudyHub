@@ -14,6 +14,8 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
@@ -186,8 +188,24 @@ fun StudyHubApp(viewModel: StudyHubViewModel = viewModel()) {
         amoled = amoled,
         fontScale = fontScale,
     ) {
-        Surface(color = MaterialTheme.colorScheme.surface) {
-            AppRoot(viewModel)
+        // A soft wash of the accent fading into the page, so the app has a colour of its
+        // own behind the cards instead of a flat white or black sheet.
+        val wash = MaterialTheme.colorScheme.primaryContainer
+        val page = MaterialTheme.colorScheme.surface
+        androidx.compose.foundation.layout.Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    androidx.compose.ui.graphics.Brush.verticalGradient(
+                        0f to wash.copy(alpha = 0.75f),
+                        0.45f to page,
+                        1f to page
+                    )
+                )
+        ) {
+            Surface(color = androidx.compose.ui.graphics.Color.Transparent) {
+                AppRoot(viewModel)
+            }
         }
     }
 }
@@ -250,6 +268,7 @@ private fun AppRoot(viewModel: StudyHubViewModel) {
     }
 
     Scaffold(
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
         bottomBar = {
             // Slides out of the way while reading a long list and comes back on the
             // first upward scroll. On a 360x800dp screen the bar is 80dp, which is a

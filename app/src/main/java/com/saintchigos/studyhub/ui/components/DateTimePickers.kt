@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -23,10 +22,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TimePicker
-import androidx.compose.material3.TimePickerState
 import androidx.compose.material3.rememberDatePickerState
-import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -56,29 +52,6 @@ private fun utcMillisFor(date: LocalDate): Long =
 
 private fun localDateFromUtcMillis(millis: Long): LocalDate =
     Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate()
-
-/** material3 1.3.x has no TimePickerDialog, so wrap TimePicker in an AlertDialog. */
-@Composable
-private fun TimePickerDialogWrapper(
-    state: TimePickerState,
-    onDismissRequest: () -> Unit,
-    onConfirm: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismissRequest,
-        title = { Text("Choose a time") },
-        text = {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                TimePicker(state = state)
-            }
-        },
-        confirmButton = { TextButton(onClick = onConfirm) { Text("OK") } },
-        dismissButton = { TextButton(onClick = onDismissRequest) { Text("Cancel") } }
-    )
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -184,16 +157,13 @@ fun TimePickerField(
     }
 
     if (open) {
-        val state = rememberTimePickerState(
+        TimeScrollDialog(
             initialHour = time.hour,
             initialMinute = time.minute,
-            is24Hour = is24Hour
-        )
-        TimePickerDialogWrapper(
-            state = state,
-            onDismissRequest = { open = false },
-            onConfirm = {
-                onTimeChange(LocalTime.of(state.hour, state.minute))
+            is24Hour = is24Hour,
+            onDismiss = { open = false },
+            onConfirm = { hour, minute ->
+                onTimeChange(LocalTime.of(hour, minute))
                 open = false
             }
         )

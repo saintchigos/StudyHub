@@ -16,6 +16,14 @@ Powered by **Chigos Media**.
 - **Courses** - add and remove courses, then attach classes, assignments and exams to them.
 - **Grade calculator** - the calculator icon on the Exams screen answers "what do I need in the
   exam to reach 50?" from three numbers.
+- **GPA estimator** - the calculator icon on the Courses screen: tap a grade beside each module and
+  see the credit-weighted GPA. Nothing is saved.
+- **Today's plan** - Home ranks what needs attention first: overdue work, then what is due today,
+  then the next three days.
+- **Study level** - focus time earns XP and a level (Newcomer up to Legend), shown on Home.
+- **This week** - animated bars of focus minutes for the last seven days.
+- **A new look** - the accent now tints the whole app (page, cards, tiles), not just buttons;
+  gradient hero, colourful tiles and a redesigned alarm screen.
 - **Morning briefing** - a short 7:00 summary (classes, tasks due, exam countdown), posted only on
   days that have something in them.
 

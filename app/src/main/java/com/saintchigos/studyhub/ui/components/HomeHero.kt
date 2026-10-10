@@ -51,7 +51,7 @@ fun HomeHero(
             .clip(RoundedCornerShape(28.dp))
             .background(
                 Brush.linearGradient(
-                    listOf(scheme.primary, lerp(scheme.primary, scheme.tertiary, 0.65f))
+                    listOf(scheme.primary, lerp(scheme.primary, scheme.tertiary, 0.55f))
                 )
             )
             .padding(20.dp)

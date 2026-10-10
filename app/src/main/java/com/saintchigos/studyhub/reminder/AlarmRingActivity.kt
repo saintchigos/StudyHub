@@ -5,6 +5,17 @@ import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -119,7 +130,8 @@ class AlarmRingActivity : ComponentActivity() {
  *
  * Two buttons of equal size and weight: a student who cannot read the screen well
  * yet should be able to act by position, and neither choice should look like the
- * "wrong" one.
+ * "wrong" one. The pulsing rings are there to be noticed half asleep, and they are the
+ * only motion on the screen so nothing competes with the two buttons.
  */
 @Composable
 private fun AlarmRingScreen(
@@ -127,10 +139,28 @@ private fun AlarmRingScreen(
     onTurnOff: () -> Unit,
     onSnooze: () -> Unit
 ) {
+    val scheme = MaterialTheme.colorScheme
+    val onColor = scheme.onPrimary
+
+    val transition = rememberInfiniteTransition(label = "alarmPulse")
+    val pulse by transition.animateFloat(
+        initialValue = 0.85f,
+        targetValue = 1.3f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 900),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulse"
+    )
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.primaryContainer),
+            .background(
+                Brush.verticalGradient(
+                    listOf(scheme.primary, lerp(scheme.primary, scheme.tertiary, 0.7f))
+                )
+            ),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -139,30 +169,46 @@ private fun AlarmRingScreen(
                 .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(
-                Icons.Filled.Alarm,
-                contentDescription = null,
-                modifier = Modifier.size(72.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
+            Box(contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier
+                        .size((150 * pulse).dp)
+                        .clip(CircleShape)
+                        .background(onColor.copy(alpha = 0.10f))
+                )
+                Box(
+                    modifier = Modifier
+                        .size(112.dp)
+                        .clip(CircleShape)
+                        .background(onColor.copy(alpha = 0.20f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Filled.Alarm,
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp),
+                        tint = onColor
+                    )
+                }
+            }
 
-            Spacer(Modifier.height(16.dp))
-
-            Text(
-                text = label,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(28.dp))
 
             Text(
                 text = DailyAlarms.formatTime(currentMinuteOfDay()),
-                style = MaterialTheme.typography.displayMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                style = MaterialTheme.typography.displayLarge,
+                fontWeight = FontWeight.ExtraBold,
+                color = onColor
+            )
+
+            Spacer(Modifier.height(6.dp))
+
+            Text(
+                text = label,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = onColor.copy(alpha = 0.92f),
+                textAlign = TextAlign.Center
             )
 
             Spacer(Modifier.height(48.dp))
@@ -175,12 +221,17 @@ private fun AlarmRingScreen(
                     .fillMaxWidth()
                     .widthIn(max = 320.dp)
                     .height(72.dp),
+                shape = RoundedCornerShape(36.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
+                    containerColor = onColor,
+                    contentColor = scheme.primary
                 )
             ) {
-                Text("Turn off", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    "Turn off",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.ExtraBold
+                )
             }
 
             Spacer(Modifier.height(12.dp))
@@ -191,14 +242,16 @@ private fun AlarmRingScreen(
                     .fillMaxWidth()
                     .widthIn(max = 320.dp)
                     .height(72.dp),
+                shape = RoundedCornerShape(36.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    contentColor = MaterialTheme.colorScheme.onSurface
+                    containerColor = onColor.copy(alpha = 0.16f),
+                    contentColor = onColor
                 )
             ) {
                 Text(
                     "Snooze ${DailyAlarms.SNOOZE_MINUTES} min",
-                    style = MaterialTheme.typography.titleLarge
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
                 )
             }
         }

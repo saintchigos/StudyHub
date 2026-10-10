@@ -10,6 +10,7 @@ import com.saintchigos.studyhub.data.ClassSession
 import com.saintchigos.studyhub.data.Course
 import com.saintchigos.studyhub.data.Exam
 import com.saintchigos.studyhub.data.ExamWithCourse
+import com.saintchigos.studyhub.data.FocusSession
 import com.saintchigos.studyhub.data.NotificationLog
 import com.saintchigos.studyhub.data.PlanCourse
 import com.saintchigos.studyhub.data.PlanWithProgramme
@@ -112,6 +113,19 @@ class StudyHubViewModel(app: Application) : AndroidViewModel(app) {
     val exams: StateFlow<List<ExamWithCourse>> =
         dao.observeUpcomingExams(TimeUtil.toEpochMillis(TimeUtil.now()))
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // ---- focus numbers for Home -------------------------------------------
+
+    /** Total focus minutes ever logged, which Home turns into a level. */
+    val focusMinutesTotal: StateFlow<Int> = dao.observeFocusMinutesTotal()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val focusSessionCount: StateFlow<Int> = dao.observeFocusSessionCount()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    /** Recent sessions, enough to cover the last seven days for the weekly bars. */
+    val recentFocus: StateFlow<List<FocusSession>> = dao.observeRecentFocusSessions(200)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // ---- programme setup --------------------------------------------------
 

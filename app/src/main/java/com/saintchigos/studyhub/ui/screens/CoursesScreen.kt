@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -42,6 +43,7 @@ import com.saintchigos.studyhub.ui.StudyHubViewModel
 import com.saintchigos.studyhub.ui.components.CourseAvatar
 import com.saintchigos.studyhub.ui.components.DateTimeFields
 import com.saintchigos.studyhub.ui.components.EmptyState
+import com.saintchigos.studyhub.ui.components.GpaDialog
 import com.saintchigos.studyhub.ui.components.ScreenHeader
 import com.saintchigos.studyhub.ui.components.SectionHeader
 import com.saintchigos.studyhub.ui.components.SessionDialog
@@ -52,6 +54,7 @@ import java.time.LocalTime
 fun CoursesScreen(viewModel: StudyHubViewModel) {
     val courses by viewModel.courses.collectAsStateWithLifecycle()
     var showCourseDialog by remember { mutableStateOf(false) }
+    var showGpa by remember { mutableStateOf(false) }
     var sessionCourseId by remember { mutableStateOf<Long?>(null) }
     var examCourseId by remember { mutableStateOf<Long?>(null) }
     var assignmentCourseId by remember { mutableStateOf<Long?>(null) }
@@ -61,13 +64,22 @@ fun CoursesScreen(viewModel: StudyHubViewModel) {
             title = "Courses",
             subtitle = "${courses.size} registered",
             trailing = {
-                Button(onClick = { showCourseDialog = true }) {
-                    Icon(Icons.Filled.Add, contentDescription = null)
-                    Spacer(Modifier.width(6.dp))
-                    Text("Add")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { showGpa = true }) {
+                        Icon(Icons.Filled.Calculate, contentDescription = "GPA estimator")
+                    }
+                    Button(onClick = { showCourseDialog = true }) {
+                        Icon(Icons.Filled.Add, contentDescription = null)
+                        Spacer(Modifier.width(6.dp))
+                        Text("Add")
+                    }
                 }
             }
         )
+
+        if (showGpa) {
+            GpaDialog(courses = courses, onDismiss = { showGpa = false })
+        }
 
         if (courses.isEmpty()) {
             EmptyState(

@@ -47,8 +47,6 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TimePicker
-import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -67,6 +65,7 @@ import com.saintchigos.studyhub.data.FocusSession
 import com.saintchigos.studyhub.reminder.DailyAlarms
 import com.saintchigos.studyhub.ui.FocusPhase
 import com.saintchigos.studyhub.ui.FocusViewModel
+import com.saintchigos.studyhub.ui.components.TimeScrollDialog
 
 /** Durations offered up front. Any length can be dialled in on the slider. */
 private val DURATION_CHOICES = listOf(15, 25, 45, 60)
@@ -920,45 +919,20 @@ internal fun AlarmEditorDialog(
 }
 
 /**
- * The clock on its own, with no other controls competing for vertical space.
+ * The scrolling time wheels on their own, with no other controls competing for space.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AlarmTimeDialog(
     initialMinuteOfDay: Int,
     onDismiss: () -> Unit,
     onConfirm: (Int) -> Unit
 ) {
-    val timeState = rememberTimePickerState(
-        initialHour = initialMinuteOfDay / 60,
+    TimeScrollDialog(
+        initialHour = (initialMinuteOfDay / 60) % 24,
         initialMinute = initialMinuteOfDay % 60,
-        is24Hour = false
-    )
-    // The dial fills the dialog rather than being told a maximum height. Any cap
-    // small enough to fit an alert dialog clipped the clock away, which left the
-    // student with two bare numbers and no visible clock face.
-    val dialHeight = 320.dp
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Alarm time") },
-        text = {
-            Box(
-                modifier = Modifier.fillMaxWidth().height(dialHeight),
-                contentAlignment = Alignment.Center
-            ) {
-                TimePicker(state = timeState)
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = { onConfirm(timeState.hour * 60 + timeState.minute) },
-                modifier = Modifier.height(48.dp)
-            ) { Text("Set time") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss, modifier = Modifier.height(48.dp)) { Text("Back") }
-        }
+        is24Hour = false,
+        onDismiss = onDismiss,
+        onConfirm = { hour, minute -> onConfirm(hour * 60 + minute) }
     )
 }
 

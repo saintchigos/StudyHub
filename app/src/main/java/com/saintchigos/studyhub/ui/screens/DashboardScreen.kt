@@ -1,6 +1,7 @@
 package com.saintchigos.studyhub.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -50,6 +52,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -61,7 +64,13 @@ import com.saintchigos.studyhub.ui.StudyHubViewModel
 import com.saintchigos.studyhub.ui.components.CourseAvatar
 import com.saintchigos.studyhub.ui.components.CourseTag
 import com.saintchigos.studyhub.ui.components.EmptyState
+import com.saintchigos.studyhub.domain.StudyLevel
+import com.saintchigos.studyhub.domain.TodayPlan
+import com.saintchigos.studyhub.domain.WeeklyFocus
 import com.saintchigos.studyhub.ui.components.HomeHero
+import com.saintchigos.studyhub.ui.components.StudyLevelCard
+import com.saintchigos.studyhub.ui.components.TodayPlanCard
+import com.saintchigos.studyhub.ui.components.WeeklyFocusCard
 import com.saintchigos.studyhub.ui.components.greetingFor
 import com.saintchigos.studyhub.reminder.NextClass
 import com.saintchigos.studyhub.ui.components.NotificationBell
@@ -107,6 +116,13 @@ fun DashboardScreen(
     val nextClass = remember(allSessions, tick) { NextClass.nextSession(allSessions) }
     val nextExam = exams.firstOrNull { it.startsAt >= tick }
     val sessions by viewModel.sessionsForSelectedDay.collectAsStateWithLifecycle()
+
+    val focusMinutes by viewModel.focusMinutesTotal.collectAsStateWithLifecycle()
+    val focusSessions by viewModel.focusSessionCount.collectAsStateWithLifecycle()
+    val recentFocus by viewModel.recentFocus.collectAsStateWithLifecycle()
+    val planItems = remember(assignments, exams, tick) { TodayPlan.build(assignments, exams, TimeUtil.now()) }
+    val studyLevel = remember(focusMinutes, focusSessions) { StudyLevel.status(focusMinutes, focusSessions) }
+    val weekDays = remember(recentFocus, tick) { WeeklyFocus.lastSevenDays(recentFocus, TimeUtil.now()) }
 
     val open = assignments.filter { !it.isDone }
     val overdue = open.filter { it.dueAt < tick }
@@ -175,6 +191,10 @@ fun DashboardScreen(
                 onOpenTimetable = onOpenTimetable
             )
         }
+
+        item { TodayPlanCard(items = planItems) }
+        item { StudyLevelCard(status = studyLevel, onClick = onOpenFocus) }
+        item { WeeklyFocusCard(days = weekDays) }
 
         item { CommunityCard(communityViewModel, onOpenAccount, onOpenCommunity) }
 
@@ -626,6 +646,7 @@ private fun QuickActionsGrid(
                     QuickActionTile(
                         label = tile.label,
                         icon = tile.icon,
+                        tone = tiles.indexOf(tile),
                         onClick = tile.onClick,
                         modifier = Modifier.weight(1f)
                     )
@@ -671,32 +692,51 @@ private data class QuickAction(
 private fun QuickActionTile(
     label: String,
     icon: ImageVector,
+    tone: Int,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scheme = MaterialTheme.colorScheme
+    // Rotates through the theme's three colour families, so the grid is colourful
+    // and still follows whichever accent the student picked.
+    val container: Color
+    val bubble: Color
+    val onBubble: Color
+    when (tone % 3) {
+        0 -> { container = scheme.primaryContainer; bubble = scheme.primary; onBubble = scheme.onPrimary }
+        1 -> { container = scheme.secondaryContainer; bubble = scheme.secondary; onBubble = scheme.onSecondary }
+        else -> { container = scheme.tertiaryContainer; bubble = scheme.tertiary; onBubble = scheme.onTertiary }
+    }
     Card(
         onClick = onClick,
-        modifier = modifier.height(76.dp),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+        modifier = modifier.height(88.dp),
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = container)
     ) {
         Column(
             modifier = Modifier.fillMaxSize().padding(6.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Icon(
-                icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(22.dp)
-            )
-            Spacer(Modifier.height(4.dp))
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(bubble),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = onBubble,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Spacer(Modifier.height(5.dp))
             Text(
                 label,
                 style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )

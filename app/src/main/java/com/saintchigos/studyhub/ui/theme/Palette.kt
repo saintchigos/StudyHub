@@ -126,71 +126,95 @@ private fun readablePair(
     return fallback to Color.White
 }
 
-/** Cached hue math for one accent, so the picker does not recompute per frame. */
+/**
+ * One accent's full scheme.
+ *
+ * Three ideas make it feel alive rather than corporate:
+ *  - The page and every card colour carry a clear wash of the accent hue. Material's
+ *    own card colours are a fixed lavender-grey that ignores the accent, so setting
+ *    the surface container roles is what makes the whole app change colour, not just
+ *    the buttons.
+ *  - The primary is allowed to be genuinely saturated. Contrast is still guaranteed,
+ *    because [readablePair] walks the lightness until the text on it passes.
+ *  - The supporting colours sit a third of the way round the wheel (tertiary) instead
+ *    of next door, so a gradient from primary to tertiary has real movement in it.
+ *
+ * Every value here is checked by PaletteTest for readability and for accents being
+ * visibly different from each other.
+ */
 private fun schemeFor(seed: Color, dark: Boolean): ColorScheme {
     val base = seed.toHsl()
     val h = base.h
-    // Chroma is capped: a very saturated seed otherwise produces a primary that
-    // vibrates against a near white background and tires the eye.
-    val s = base.s.coerceIn(0f, 0.62f)
+    val s = base.s.coerceIn(0f, 0.80f)
 
-    // Analogous hues for the supporting roles, rather than three unrelated colours.
-    val secondaryH = (h + 32f) % 360f
-    val tertiaryH = (h + 300f) % 360f
+    val secondaryH = (h + 40f) % 360f
+    val tertiaryH = (h + 120f) % 360f
 
     return if (dark) {
-        val (primary, onPrimary) = readablePair(h, s * 0.78f, 0.76f, preferLightText = false)
-        val (secondary, onSecondary) = readablePair(secondaryH, s * 0.60f, 0.74f, preferLightText = false)
-        val (tertiary, onTertiary) = readablePair(tertiaryH, s * 0.60f, 0.76f, preferLightText = false)
+        val (primary, onPrimary) = readablePair(h, s * 0.85f, 0.74f, preferLightText = false)
+        val (secondary, onSecondary) = readablePair(secondaryH, s * 0.70f, 0.72f, preferLightText = false)
+        val (tertiary, onTertiary) = readablePair(tertiaryH, s * 0.70f, 0.74f, preferLightText = false)
 
         darkColorScheme(
             primary = primary,
             onPrimary = onPrimary,
-            primaryContainer = Hcl(h, s * 0.45f, 0.30f).toColor(),
-            onPrimaryContainer = Hcl(h, s * 0.35f, 0.90f).toColor(),
+            primaryContainer = Hcl(h, s * 0.55f, 0.28f).toColor(),
+            onPrimaryContainer = Hcl(h, s * 0.40f, 0.92f).toColor(),
             secondary = secondary,
             onSecondary = onSecondary,
-            secondaryContainer = Hcl(secondaryH, s * 0.40f, 0.28f).toColor(),
-            onSecondaryContainer = Hcl(secondaryH, s * 0.30f, 0.88f).toColor(),
+            secondaryContainer = Hcl(secondaryH, s * 0.45f, 0.26f).toColor(),
+            onSecondaryContainer = Hcl(secondaryH, s * 0.35f, 0.90f).toColor(),
             tertiary = tertiary,
             onTertiary = onTertiary,
-            tertiaryContainer = Hcl(tertiaryH, s * 0.40f, 0.30f).toColor(),
-            onTertiaryContainer = Hcl(tertiaryH, s * 0.30f, 0.90f).toColor(),
-            background = Hcl(h, 0.06f, 0.08f).toColor(),
-            onBackground = Hcl(h, 0.10f, 0.92f).toColor(),
-            surface = Hcl(h, 0.06f, 0.08f).toColor(),
-            onSurface = Hcl(h, 0.10f, 0.92f).toColor(),
-            surfaceVariant = Hcl(h, 0.10f, 0.22f).toColor(),
-            onSurfaceVariant = Hcl(h, 0.10f, 0.78f).toColor(),
-            outline = Hcl(h, 0.08f, 0.45f).toColor(),
+            tertiaryContainer = Hcl(tertiaryH, s * 0.45f, 0.28f).toColor(),
+            onTertiaryContainer = Hcl(tertiaryH, s * 0.35f, 0.92f).toColor(),
+            background = Hcl(h, 0.22f, 0.07f).toColor(),
+            onBackground = Hcl(h, 0.20f, 0.93f).toColor(),
+            surface = Hcl(h, 0.22f, 0.07f).toColor(),
+            onSurface = Hcl(h, 0.20f, 0.93f).toColor(),
+            surfaceVariant = Hcl(h, 0.20f, 0.20f).toColor(),
+            onSurfaceVariant = Hcl(h, 0.16f, 0.80f).toColor(),
+            surfaceContainerLowest = Hcl(h, 0.24f, 0.05f).toColor(),
+            surfaceContainerLow = Hcl(h, 0.22f, 0.09f).toColor(),
+            surfaceContainer = Hcl(h, 0.22f, 0.12f).toColor(),
+            surfaceContainerHigh = Hcl(h, 0.22f, 0.15f).toColor(),
+            surfaceContainerHighest = Hcl(h, 0.22f, 0.18f).toColor(),
+            outline = Hcl(h, 0.14f, 0.52f).toColor(),
+            outlineVariant = Hcl(h, 0.18f, 0.28f).toColor(),
             error = ErrorDark,
             onError = Color.White,
         )
     } else {
-        val (primary, onPrimary) = readablePair(h, s, 0.40f, preferLightText = true)
-        val (secondary, onSecondary) = readablePair(secondaryH, s * 0.75f, 0.36f, preferLightText = true)
-        val (tertiary, onTertiary) = readablePair(tertiaryH, s * 0.75f, 0.40f, preferLightText = true)
+        val (primary, onPrimary) = readablePair(h, s, 0.42f, preferLightText = true)
+        val (secondary, onSecondary) = readablePair(secondaryH, s * 0.85f, 0.38f, preferLightText = true)
+        val (tertiary, onTertiary) = readablePair(tertiaryH, s * 0.85f, 0.40f, preferLightText = true)
 
         lightColorScheme(
             primary = primary,
             onPrimary = onPrimary,
-            primaryContainer = Hcl(h, s * 0.55f, 0.90f).toColor(),
-            onPrimaryContainer = Hcl(h, s, 0.22f).toColor(),
+            primaryContainer = Hcl(h, s * 0.70f, 0.88f).toColor(),
+            onPrimaryContainer = Hcl(h, s, 0.20f).toColor(),
             secondary = secondary,
             onSecondary = onSecondary,
-            secondaryContainer = Hcl(secondaryH, s * 0.50f, 0.90f).toColor(),
-            onSecondaryContainer = Hcl(secondaryH, s, 0.20f).toColor(),
+            secondaryContainer = Hcl(secondaryH, s * 0.60f, 0.88f).toColor(),
+            onSecondaryContainer = Hcl(secondaryH, s, 0.18f).toColor(),
             tertiary = tertiary,
             onTertiary = onTertiary,
-            tertiaryContainer = Hcl(tertiaryH, s * 0.50f, 0.90f).toColor(),
-            onTertiaryContainer = Hcl(tertiaryH, s, 0.22f).toColor(),
-            background = Hcl(h, 0.10f, 0.99f).toColor(),
-            onBackground = Hcl(h, 0.30f, 0.12f).toColor(),
-            surface = Hcl(h, 0.10f, 0.99f).toColor(),
-            onSurface = Hcl(h, 0.30f, 0.12f).toColor(),
-            surfaceVariant = Hcl(h, 0.16f, 0.93f).toColor(),
-            onSurfaceVariant = Hcl(h, 0.18f, 0.36f).toColor(),
-            outline = Hcl(h, 0.12f, 0.60f).toColor(),
+            tertiaryContainer = Hcl(tertiaryH, s * 0.60f, 0.88f).toColor(),
+            onTertiaryContainer = Hcl(tertiaryH, s, 0.20f).toColor(),
+            background = Hcl(h, 0.32f, 0.97f).toColor(),
+            onBackground = Hcl(h, 0.40f, 0.12f).toColor(),
+            surface = Hcl(h, 0.32f, 0.97f).toColor(),
+            onSurface = Hcl(h, 0.40f, 0.12f).toColor(),
+            surfaceVariant = Hcl(h, 0.34f, 0.91f).toColor(),
+            onSurfaceVariant = Hcl(h, 0.30f, 0.28f).toColor(),
+            surfaceContainerLowest = Color.White,
+            surfaceContainerLow = Hcl(h, 0.40f, 0.96f).toColor(),
+            surfaceContainer = Hcl(h, 0.38f, 0.94f).toColor(),
+            surfaceContainerHigh = Hcl(h, 0.36f, 0.92f).toColor(),
+            surfaceContainerHighest = Hcl(h, 0.34f, 0.90f).toColor(),
+            outline = Hcl(h, 0.16f, 0.55f).toColor(),
+            outlineVariant = Hcl(h, 0.28f, 0.82f).toColor(),
             error = ErrorRed,
             onError = Color.White,
         )

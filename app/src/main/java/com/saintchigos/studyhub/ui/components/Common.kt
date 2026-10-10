@@ -29,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -49,15 +50,16 @@ fun CourseAvatar(
         modifier = modifier
             .size(size)
             .clip(CircleShape)
-            .background(color.copy(alpha = 0.18f))
-            .border(1.dp, color.copy(alpha = 0.45f), CircleShape),
+            .background(color)
+            .border(2.dp, color.copy(alpha = 0.35f), CircleShape),
         contentAlignment = Alignment.Center
     ) {
+        // White on the solid colour: every CoursePalette entry clears 4.5:1 against it.
         Text(
             text = code.take(3).uppercase(),
-            color = color,
+            color = Color.White,
             style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.ExtraBold
         )
     }
 }
@@ -93,10 +95,21 @@ fun SectionHeader(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .width(5.dp)
+                    .height(20.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(MaterialTheme.colorScheme.primary)
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        }
         if (trailing != null) trailing()
     }
 }
@@ -108,12 +121,14 @@ fun StatCard(
     modifier: Modifier = Modifier,
     accent: Color = MaterialTheme.colorScheme.primary
 ) {
+    // A wash of the stat's own colour over a clean card, so a row of stats reads as
+    // a row of different things rather than three identical grey boxes.
+    val tinted = accent.copy(alpha = 0.14f)
+        .compositeOver(MaterialTheme.colorScheme.surfaceContainerLowest)
     Card(
         modifier = modifier,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        ),
-        shape = RoundedCornerShape(16.dp)
+        colors = CardDefaults.cardColors(containerColor = tinted),
+        shape = RoundedCornerShape(20.dp)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Text(
@@ -125,6 +140,7 @@ fun StatCard(
             Text(
                 text = value,
                 style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.ExtraBold,
                 color = accent
             )
         }
